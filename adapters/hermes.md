@@ -3,7 +3,7 @@
 ## Install (recommended: git clone)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.hermes/skills/google-seo-audit
+git clone https://github.com/jiguang9/google-seo-audit ~/.hermes/skills/google-seo-audit
 ```
 
 Or register in your Hermes configuration:
@@ -35,13 +35,13 @@ Run Google SEO audit on https://example.com with PSI key AIzaSy...
 ## With version check
 
 ```
-Audit https://example.com --github-owner YOUR_USERNAME
+Audit https://example.com --github-owner jiguang9
 ```
 
 ## With all parameters
 
 ```
-Audit https://example.com --psi-key AIzaSy... --gsc ./gsc-performance-queries.csv --github-owner YOUR_USERNAME
+Audit https://example.com --psi-key AIzaSy... --gsc ./gsc-performance-queries.csv --github-owner jiguang9
 ```
 
 ## Execution flow

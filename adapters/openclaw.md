@@ -3,7 +3,7 @@
 ## Install (recommended: git clone)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.openclaw/skills/google-seo-audit
+git clone https://github.com/jiguang9/google-seo-audit ~/.openclaw/skills/google-seo-audit
 ```
 
 Or add to your OpenClaw skill registry:
@@ -11,7 +11,7 @@ Or add to your OpenClaw skill registry:
 ```yaml
 skills:
   - name: google-seo-audit
-    source: https://github.com/YOUR_USERNAME/google-seo-audit
+    source: https://github.com/jiguang9/google-seo-audit
     skill_file: SKILL.md
 ```
 
@@ -36,13 +36,13 @@ Run SEO audit on https://example.com with key AIzaSy...
 ## With version check
 
 ```
-对 https://example.com 进行 SEO 诊断，github owner 是 YOUR_USERNAME
+对 https://example.com 进行 SEO 诊断，github owner 是 jiguang9
 ```
 
 ## With all parameters
 
 ```
-对 https://example.com 进行 SEO 诊断，PSI key 是 AIzaSy...，GSC 文件在 ./gsc.csv，github owner 是 YOUR_USERNAME
+对 https://example.com 进行 SEO 诊断，PSI key 是 AIzaSy...，GSC 文件在 ./gsc.csv，github owner 是 jiguang9
 ```
 
 ## Get notified of updates

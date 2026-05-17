@@ -33,11 +33,11 @@ All environments: **`git clone` is the recommended install method** — it gives
 
 ```bash
 # Recommended: clone for easy updates
-git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.claude/skills/google-seo-audit
+git clone https://github.com/jiguang9/google-seo-audit ~/.claude/skills/google-seo-audit
 claude skill add ~/.claude/skills/google-seo-audit
 
 # Alternative: install directly from GitHub (no easy update path)
-claude skill add github:YOUR_USERNAME/google-seo-audit
+claude skill add github:jiguang9/google-seo-audit
 ```
 
 See [adapters/claude-code-command.md](adapters/claude-code-command.md) for details.
@@ -45,7 +45,7 @@ See [adapters/claude-code-command.md](adapters/claude-code-command.md) for detai
 ### Codex
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.codex/skills/google-seo-audit
+git clone https://github.com/jiguang9/google-seo-audit ~/.codex/skills/google-seo-audit
 ```
 
 See [adapters/codex-usage.md](adapters/codex-usage.md).
@@ -53,7 +53,7 @@ See [adapters/codex-usage.md](adapters/codex-usage.md).
 ### OpenClaw
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.openclaw/skills/google-seo-audit
+git clone https://github.com/jiguang9/google-seo-audit ~/.openclaw/skills/google-seo-audit
 ```
 
 See [adapters/openclaw.md](adapters/openclaw.md).
@@ -61,7 +61,7 @@ See [adapters/openclaw.md](adapters/openclaw.md).
 ### Hermes
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.hermes/skills/google-seo-audit
+git clone https://github.com/jiguang9/google-seo-audit ~/.hermes/skills/google-seo-audit
 ```
 
 See [adapters/hermes.md](adapters/hermes.md).
@@ -77,12 +77,12 @@ cd ~/.claude/skills/google-seo-audit   # or wherever you cloned it
 git pull
 ```
 
-**Automatic update notice**: if you pass `--github-owner=YOUR_USERNAME` when running the audit,
+**Automatic update notice**: if you pass `--github-owner=jiguang9` when running the audit,
 the skill checks the latest GitHub release and prepends a notice to the report if a newer
 version is available. The check is non-blocking — it never delays or fails the audit.
 
 ```bash
-/google-seo-audit https://example.com --github-owner=YOUR_USERNAME
+/google-seo-audit https://example.com --github-owner=jiguang9
 ```
 
 To get notified of new releases without running an audit, watch this repository:
@@ -120,7 +120,7 @@ python audit_url.py https://example.com --psi-key=AIzaSy...
 python audit_url.py https://example.com --gsc=../examples/gsc-performance-queries.csv
 python audit_url.py https://example.com --output=../report.md
 # With version check
-python audit_url.py https://example.com --github-owner=YOUR_USERNAME
+python audit_url.py https://example.com --github-owner=jiguang9
 ```
 
 ---

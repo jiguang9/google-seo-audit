@@ -3,7 +3,7 @@
 ## Install (recommended: git clone)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.claude/skills/google-seo-audit
+git clone https://github.com/jiguang9/google-seo-audit ~/.claude/skills/google-seo-audit
 claude skill add ~/.claude/skills/google-seo-audit
 ```
 
@@ -19,7 +19,7 @@ That's it — one command, always in sync with the latest release.
 ## Install (alternative: directly from GitHub)
 
 ```bash
-claude skill add github:YOUR_USERNAME/google-seo-audit
+claude skill add github:jiguang9/google-seo-audit
 ```
 
 > This copies files locally with no git history. To update, re-run the command above.
@@ -30,7 +30,7 @@ claude skill add github:YOUR_USERNAME/google-seo-audit
 /google-seo-audit https://example.com
 /google-seo-audit https://example.com --psi-key=AIzaSy...
 /google-seo-audit https://example.com --psi-key=AIzaSy... --gsc=./gsc.csv
-/google-seo-audit https://example.com --github-owner=YOUR_USERNAME   # version check
+/google-seo-audit https://example.com --github-owner=jiguang9   # version check
 ```
 
 ## Natural language

@@ -52,5 +52,5 @@ git pull
 If installed via `claude skill add github:...` (not git clone), re-run the install command:
 
 ```bash
-claude skill add github:YOUR_USERNAME/google-seo-audit
+claude skill add github:jiguang9/google-seo-audit
 ```

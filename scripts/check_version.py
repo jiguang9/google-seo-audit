@@ -112,7 +112,7 @@ def format_update_banner(check_result: dict) -> str:
 
 if __name__ == "__main__":
     import sys
-    owner = sys.argv[1] if len(sys.argv) > 1 else "YOUR_USERNAME"
+    owner = sys.argv[1] if len(sys.argv) > 1 else "jiguang9"
     result = check_for_update(owner)
     if result["update_available"]:
         print(result["notice"])
