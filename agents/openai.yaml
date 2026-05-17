@@ -1,16 +1,22 @@
+schema_version: v1
 name: google-seo-audit
-description: >
-  Performs a comprehensive Google SEO audit for any website URL.
-  Analyses technical SEO, Core Web Vitals, on-page content, internal links,
-  backlinks (via optional GSC export), and mobile experience.
-  Generates a prioritised report with evidence-backed findings and fix recommendations.
 version: 1.0.0
-skill_file: ../SKILL.md
+
+interface:
+  display_name: "Google SEO Audit"
+  short_description: "Audit any website for Google SEO issues with evidence-backed reports."
+  default_prompt: "Use google-seo-audit to audit https://example.com."
+  icon_url: "https://raw.githubusercontent.com/jiguang9/google-seo-audit/main/assets/icon.png"
+
+policy:
+  allow_implicit_invocation: true
+
 triggers:
   - "audit {url}"
   - "seo audit {url}"
   - "google seo audit {url}"
   - "check seo for {url}"
+
 parameters:
   - name: url
     type: string
@@ -19,8 +25,17 @@ parameters:
   - name: psi_key
     type: string
     required: false
-    description: Google PageSpeed Insights API key (free; increases quota)
+    description: >
+      Google PageSpeed Insights API key (optional; increases quota).
+      Can also be set via PAGESPEED_API_KEY environment variable.
   - name: gsc_file
     type: string
     required: false
-    description: Path to Google Search Console CSV export
+    description: Path to Google Search Console CSV export (optional, auto-detects type)
+  - name: github_owner
+    type: string
+    required: false
+    description: GitHub username for version check (e.g. jiguang9)
+
+skill_file: ../SKILL.md
+source: https://github.com/jiguang9/google-seo-audit

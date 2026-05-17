@@ -15,6 +15,7 @@ import unittest
 # Add scripts/ to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
+from fetch_page import check_robots_txt
 from parse_gsc import detect_gsc_export_type, parse_gsc_file
 from parse_html import (
     detect_language,
@@ -365,6 +366,69 @@ class TestSitemapParsing(unittest.TestCase):
 </urlset>"""
         result = parse_sitemap_xml(xml)
         self.assertFalse(result["has_lastmod"])
+
+
+# ---------------------------------------------------------------------------
+# robots.txt parsing tests (unit-tests the parser logic directly)
+# ---------------------------------------------------------------------------
+
+class TestRobotsTxtParsing(unittest.TestCase):
+    """
+    Tests for the Sitemap-inside-UA-block bug fix.
+    We patch requests.get to return controlled robots.txt content.
+    """
+
+    def _run_check(self, robots_content: str) -> dict:
+        """Monkey-patch requests.get and call check_robots_txt."""
+        import unittest.mock as mock
+        import fetch_page
+
+        fake_response = mock.MagicMock()
+        fake_response.status_code = 200
+        fake_response.headers = {"Content-Type": "text/plain"}
+        fake_response.text = robots_content
+
+        with mock.patch.object(fetch_page.requests, "get", return_value=fake_response):
+            return check_robots_txt("https://example.com")
+
+    def test_sitemap_outside_ua_block_captured(self):
+        robots = (
+            "User-agent: *\n"
+            "Disallow: /private/\n"
+            "\n"
+            "Sitemap: https://example.com/sitemap.xml\n"
+        )
+        result = self._run_check(robots)
+        self.assertIn("https://example.com/sitemap.xml", result["sitemap_refs"])
+
+    def test_sitemap_inside_ua_block_still_captured(self):
+        # Bug: previously Sitemap inside a matching UA block was silently dropped
+        robots = (
+            "User-agent: *\n"
+            "Disallow: /private/\n"
+            "Sitemap: https://example.com/sitemap-inside.xml\n"
+        )
+        result = self._run_check(robots)
+        self.assertIn("https://example.com/sitemap-inside.xml", result["sitemap_refs"])
+
+    def test_sitemap_deduplication(self):
+        robots = (
+            "Sitemap: https://example.com/sitemap.xml\n"
+            "User-agent: *\n"
+            "Sitemap: https://example.com/sitemap.xml\n"  # duplicate
+        )
+        result = self._run_check(robots)
+        self.assertEqual(result["sitemap_refs"].count("https://example.com/sitemap.xml"), 1)
+
+    def test_disallow_all_blocks_critical_paths(self):
+        robots = "User-agent: *\nDisallow: /\n"
+        result = self._run_check(robots)
+        self.assertTrue(result["blocks_critical_paths"])
+
+    def test_disallow_partial_not_flagged(self):
+        robots = "User-agent: *\nDisallow: /admin/\n"
+        result = self._run_check(robots)
+        self.assertFalse(result["blocks_critical_paths"])
 
 
 # ---------------------------------------------------------------------------

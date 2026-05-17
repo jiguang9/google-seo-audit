@@ -1,6 +1,7 @@
 """PageSpeed Insights API: Core Web Vitals + diagnostics for mobile and desktop."""
 
 import json
+import os
 import time
 from typing import Dict, List, Optional
 
@@ -111,9 +112,11 @@ def fetch_psi(url: str, api_key: Optional[str] = None, strategy: str = "mobile")
     api_key is optional; if omitted, the free unauthenticated quota applies.
     Returns a structured result dict including CWV, score, opportunities, diagnostics.
     """
+    # Resolve API key: explicit arg > env var > none (unauthenticated)
+    resolved_key = api_key or os.environ.get("PAGESPEED_API_KEY")
     params = {"url": url, "strategy": strategy}
-    if api_key:
-        params["key"] = api_key
+    if resolved_key:
+        params["key"] = resolved_key
 
     result = {
         "url": url,
@@ -199,12 +202,12 @@ def generate_cwv_findings(psi_results: Dict) -> List[Dict]:
             findings.append({
                 "module": "Core Web Vitals",
                 "check": f"psi_{strategy}",
-                "status": "unknown",
-                "severity": "high",
+                "status": "data_needed",   # not a site problem — data is missing
+                "severity": "medium",
                 "confidence": "low",
                 "evidence": result["evidence"][0] if result["evidence"] else "PSI API unavailable",
-                "impact": "Cannot assess page experience without performance data",
-                "fix": "Provide --psi-key or manually paste PSI results",
+                "impact": "Core Web Vitals cannot be assessed without PageSpeed data",
+                "fix": "Run with --psi-key=YOUR_KEY or set env var PAGESPEED_API_KEY to increase quota",
             })
             continue
 

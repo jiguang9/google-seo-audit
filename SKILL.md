@@ -91,7 +91,7 @@ each step manually using the available tools.
 ### Step 0 — Check bash availability and version
 
 ```bash
-cd scripts && python audit_url.py {url} [--psi-key={key}] [--gsc={file}] [--github-owner={owner}] --output=../report.md
+python scripts/audit_url.py {url} [--psi-key={key}] [--gsc={file}] [--github-owner={owner}] --output=report.md
 ```
 
 If bash / Python is available: run the command above and output the report.  

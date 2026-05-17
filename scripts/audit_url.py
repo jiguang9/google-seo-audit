@@ -10,7 +10,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
+import re
 import sys
 from datetime import date
 from typing import Optional
@@ -45,6 +47,34 @@ from score_report import generate_report
 from check_version import check_for_update, format_update_banner
 
 
+_BLOCKED_HOSTS = re.compile(
+    r"^(localhost|.*\.local|.*\.internal|.*\.localhost)$", re.I
+)
+_PRIVATE_RANGES = [
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+]
+
+
+def _check_safe_url(url: str) -> None:
+    """Refuse localhost, loopback, and private-range targets."""
+    host = urlparse(url).hostname or ""
+    if _BLOCKED_HOSTS.match(host):
+        raise ValueError(f"Refusing to audit private/local host: {host}")
+    try:
+        addr = ipaddress.ip_address(host)
+        if any(addr in net for net in _PRIVATE_RANGES):
+            raise ValueError(f"Refusing to audit private IP address: {host}")
+    except ValueError as exc:
+        if "Refusing" in str(exc):
+            raise
+
+
 def _normalise_url(raw: str) -> str:
     """Ensure URL has a scheme."""
     if not raw.startswith(("http://", "https://")):
@@ -68,6 +98,7 @@ def run_audit(
     Returns a formatted markdown report string.
     """
     url = _normalise_url(url)
+    _check_safe_url(url)   # blocks localhost / private IPs
     print(f"[audit] Starting audit for: {url}", flush=True)
 
     # ------------------------------------------------------------------
@@ -109,7 +140,7 @@ def run_audit(
     # ------------------------------------------------------------------
     print("[audit] Checking HTTPS and redirects ...", flush=True)
     audit_data["https"] = check_https(url)
-    audit_data["www_redirect"] = check_www_redirect(_extract_domain(url))
+    audit_data["www_redirect"] = check_www_redirect(url)
 
     # ------------------------------------------------------------------
     # 4. robots.txt

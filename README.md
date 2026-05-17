@@ -32,12 +32,15 @@ All environments: **`git clone` is the recommended install method** — it gives
 ### Claude Code
 
 ```bash
-# Recommended: clone for easy updates
+# Recommended: clone into Claude Code's skills directory for easy updates
 git clone https://github.com/jiguang9/google-seo-audit ~/.claude/skills/google-seo-audit
-claude skill add ~/.claude/skills/google-seo-audit
+```
 
-# Alternative: install directly from GitHub (no easy update path)
-claude skill add github:jiguang9/google-seo-audit
+Claude Code auto-loads skills placed in `~/.claude/skills/` or `.claude/skills/` in your project.  
+If your Claude Code version supports the `skill add` command:
+
+```bash
+claude skill add github:jiguang9/google-seo-audit   # installs without git history
 ```
 
 See [adapters/claude-code-command.md](adapters/claude-code-command.md) for details.
@@ -130,7 +133,7 @@ python audit_url.py https://example.com --github-owner=jiguang9
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `url` | Yes | Target website URL |
-| `--psi-key` | No | [PageSpeed Insights API key](https://developers.google.com/speed/docs/insights/v5/get-started). Free; increases quota to 25,000 req/day. Try without first — only needed if rate-limited. |
+| `--psi-key` | No | [PageSpeed Insights API key](https://developers.google.com/speed/docs/insights/v5/get-started). Free; significantly increases the unauthenticated quota. Try without first — only needed if rate-limited. Can also be set via `PAGESPEED_API_KEY` env var. |
 | `--gsc` | No | Path to a GSC CSV export. Supports 6 export types; auto-detected. |
 | `--output` | No | Save report to a file instead of stdout |
 | `--json` | No | Output raw audit data as JSON |

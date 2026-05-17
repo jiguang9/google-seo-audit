@@ -172,6 +172,10 @@ def check_robots_txt(base_url: str) -> Dict:
                 key, val = key.strip().lower(), val.strip()
                 if key == "user-agent":
                     current_ua_applies = val in ("*", "googlebot")
+                elif key == "sitemap" and val:
+                    # Sitemap is a global directive; capture regardless of UA block position
+                    if val not in result["sitemap_refs"]:
+                        result["sitemap_refs"].append(val)
                 elif current_ua_applies:
                     if key == "disallow" and val:
                         result["disallow_rules"].append(val)
@@ -179,8 +183,6 @@ def check_robots_txt(base_url: str) -> Dict:
                             result["blocks_critical_paths"] = True
                     elif key == "allow" and val:
                         result["allow_rules"].append(val)
-                elif key == "sitemap" and val:
-                    result["sitemap_refs"].append(val)
 
             result["evidence"].append(
                 f"robots.txt found at {robots_url}; "
