@@ -1,0 +1,26 @@
+name: google-seo-audit
+description: >
+  Performs a comprehensive Google SEO audit for any website URL.
+  Analyses technical SEO, Core Web Vitals, on-page content, internal links,
+  backlinks (via optional GSC export), and mobile experience.
+  Generates a prioritised report with evidence-backed findings and fix recommendations.
+version: 1.0.0
+skill_file: ../SKILL.md
+triggers:
+  - "audit {url}"
+  - "seo audit {url}"
+  - "google seo audit {url}"
+  - "check seo for {url}"
+parameters:
+  - name: url
+    type: string
+    required: true
+    description: Target website URL
+  - name: psi_key
+    type: string
+    required: false
+    description: Google PageSpeed Insights API key (free; increases quota)
+  - name: gsc_file
+    type: string
+    required: false
+    description: Path to Google Search Console CSV export
