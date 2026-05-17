@@ -42,6 +42,7 @@ from parse_html import (
 )
 from parse_sitemap import find_sitemap_url, fetch_sitemap, parse_sitemap_xml, validate_sitemap
 from score_report import generate_report
+from check_version import check_for_update, format_update_banner
 
 
 def _normalise_url(raw: str) -> str:
@@ -60,6 +61,7 @@ def run_audit(
     psi_key: Optional[str] = None,
     gsc_file: Optional[str] = None,
     output_json: bool = False,
+    github_owner: Optional[str] = None,
 ) -> str:
     """
     Full Google SEO audit pipeline.
@@ -67,6 +69,16 @@ def run_audit(
     """
     url = _normalise_url(url)
     print(f"[audit] Starting audit for: {url}", flush=True)
+
+    # ------------------------------------------------------------------
+    # 0. Version check (non-blocking; never fails the audit)
+    # ------------------------------------------------------------------
+    update_banner = ""
+    if github_owner:
+        version_info = check_for_update(github_owner)
+        update_banner = format_update_banner(version_info)
+        if version_info.get("update_available"):
+            print(f"[audit] {version_info['notice']}", flush=True)
 
     audit_data: dict = {
         "url": url,
@@ -181,7 +193,7 @@ def run_audit(
         return json.dumps(audit_data, default=_serial, ensure_ascii=False, indent=2)
 
     report = generate_report(audit_data, language=report_language)
-    return report
+    return update_banner + report
 
 
 # ------------------------------------------------------------------
@@ -209,6 +221,8 @@ Examples:
                         help="Save report to file instead of stdout")
     parser.add_argument("--json", dest="output_json", action="store_true",
                         help="Output raw audit data as JSON instead of markdown")
+    parser.add_argument("--github-owner", dest="github_owner", default=None,
+                        help="GitHub username/org for version check (e.g. --github-owner=myuser)")
     return parser.parse_args(argv)
 
 
@@ -219,6 +233,7 @@ def main(argv=None):
         psi_key=args.psi_key,
         gsc_file=args.gsc_file,
         output_json=args.output_json,
+        github_owner=args.github_owner,
     )
 
     if args.output_file:

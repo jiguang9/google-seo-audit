@@ -27,32 +27,66 @@ Nothing is fabricated — if data is unavailable, status is `unknown`.
 
 ## Installation
 
+All environments: **`git clone` is the recommended install method** — it gives you one-command updates via `git pull`.
+
 ### Claude Code
 
 ```bash
+# Recommended: clone for easy updates
+git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.claude/skills/google-seo-audit
+claude skill add ~/.claude/skills/google-seo-audit
+
+# Alternative: install directly from GitHub (no easy update path)
 claude skill add github:YOUR_USERNAME/google-seo-audit
-```
-
-Or clone and install locally:
-
-```bash
-git clone https://github.com/YOUR_USERNAME/google-seo-audit
-claude skill add ./google-seo-audit
 ```
 
 See [adapters/claude-code-command.md](adapters/claude-code-command.md) for details.
 
 ### Codex
 
+```bash
+git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.codex/skills/google-seo-audit
+```
+
 See [adapters/codex-usage.md](adapters/codex-usage.md).
 
 ### OpenClaw
+
+```bash
+git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.openclaw/skills/google-seo-audit
+```
 
 See [adapters/openclaw.md](adapters/openclaw.md).
 
 ### Hermes
 
+```bash
+git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.hermes/skills/google-seo-audit
+```
+
 See [adapters/hermes.md](adapters/hermes.md).
+
+---
+
+## Updating
+
+Because the skill is a git repo, updates are a single command regardless of which agent you use:
+
+```bash
+cd ~/.claude/skills/google-seo-audit   # or wherever you cloned it
+git pull
+```
+
+**Automatic update notice**: if you pass `--github-owner=YOUR_USERNAME` when running the audit,
+the skill checks the latest GitHub release and prepends a notice to the report if a newer
+version is available. The check is non-blocking — it never delays or fails the audit.
+
+```bash
+/google-seo-audit https://example.com --github-owner=YOUR_USERNAME
+```
+
+To get notified of new releases without running an audit, watch this repository:
+**GitHub → Watch → Custom → Releases**.
 
 ---
 
@@ -85,6 +119,8 @@ python audit_url.py https://example.com
 python audit_url.py https://example.com --psi-key=AIzaSy...
 python audit_url.py https://example.com --gsc=../examples/gsc-performance-queries.csv
 python audit_url.py https://example.com --output=../report.md
+# With version check
+python audit_url.py https://example.com --github-owner=YOUR_USERNAME
 ```
 
 ---
@@ -98,6 +134,7 @@ python audit_url.py https://example.com --output=../report.md
 | `--gsc` | No | Path to a GSC CSV export. Supports 6 export types; auto-detected. |
 | `--output` | No | Save report to a file instead of stdout |
 | `--json` | No | Output raw audit data as JSON |
+| `--github-owner` | No | Your GitHub username. Enables version check — audit report will include an update notice if a newer release exists. |
 
 ---
 

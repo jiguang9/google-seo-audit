@@ -1,6 +1,6 @@
-# Hermes (爱马仕) — Installation & Usage
+# Hermes (爱马仕) — Installation, Update & Usage
 
-## Install
+## Install (recommended: git clone)
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/google-seo-audit ~/.hermes/skills/google-seo-audit
@@ -15,6 +15,13 @@ skills:
     entry: SKILL.md
 ```
 
+## Update
+
+```bash
+cd ~/.hermes/skills/google-seo-audit
+git pull
+```
+
 ## Invocation
 
 Hermes reads the `triggers` block in `SKILL.md` and activates the skill on natural language match:
@@ -25,21 +32,32 @@ SEO audit https://example.com
 Run Google SEO audit on https://example.com with PSI key AIzaSy...
 ```
 
-## With parameters
+## With version check
 
 ```
-Audit https://example.com --psi-key AIzaSy... --gsc ./gsc-performance-queries.csv
+Audit https://example.com --github-owner YOUR_USERNAME
+```
+
+## With all parameters
+
+```
+Audit https://example.com --psi-key AIzaSy... --gsc ./gsc-performance-queries.csv --github-owner YOUR_USERNAME
 ```
 
 ## Execution flow
 
-1. Hermes extracts `url`, `psi-key`, and `gsc` from the invocation
+1. Hermes extracts `url`, `psi-key`, `gsc`, and `github-owner` from the invocation
 2. If bash/Python available: runs `scripts/audit_url.py` directly
 3. If not: follows the 10-step manual execution defined in `SKILL.md`
-4. Outputs a formatted markdown report
+4. Outputs formatted markdown report (+ update notice if newer version exists)
+
+## Get notified of updates
+
+Watch the GitHub repo for new releases:
+**GitHub → Watch → Custom → Releases**
 
 ## Notes
 
-- The `SKILL.md` is the single source of truth — Hermes reads it for both skill discovery and execution instructions.
+- `SKILL.md` is the single source of truth for skill discovery and execution.
 - No slash command required; pure natural language invocation.
 - Report language auto-detected from target site.

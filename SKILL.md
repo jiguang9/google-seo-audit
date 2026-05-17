@@ -88,14 +88,24 @@ When this skill is triggered, the agent **must** execute the following steps
 in order. Use `scripts/audit_url.py` if bash is available. Otherwise, execute
 each step manually using the available tools.
 
-### Step 0 — Check bash availability
+### Step 0 — Check bash availability and version
 
 ```bash
-cd scripts && python audit_url.py {url} [--psi-key={key}] [--gsc={file}] --output=../report.md
+cd scripts && python audit_url.py {url} [--psi-key={key}] [--gsc={file}] [--github-owner={owner}] --output=../report.md
 ```
 
 If bash / Python is available: run the command above and output the report.  
 If **not** available: execute Steps 1–10 manually using web_fetch and web_search.
+
+**Version check** (optional, non-blocking): if `--github-owner` is provided, the script
+calls `scripts/check_version.py` to compare the local `version` in SKILL.md against the
+latest GitHub release. If a newer version is found, a notice is prepended to the report.
+If the check fails for any reason (network, no releases yet), the audit continues silently.
+
+When running manually (no bash): call `web_fetch` on
+`https://api.github.com/repos/{owner}/google-seo-audit/releases/latest`, compare
+`tag_name` against the `version` in this file's YAML frontmatter, and prepend a notice
+if an update is available.
 
 ---
 
