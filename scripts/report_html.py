@@ -1,7 +1,8 @@
 """
 HTML report generator for google-seo-audit.
-Produces a self-contained, single-file HTML report with inline CSS.
-No external dependencies — works offline.
+Design: clean technical-documentation aesthetic — monospace accents,
+purposeful color, no decoration for decoration's sake.
+Self-contained single file, no external dependencies.
 """
 
 from __future__ import annotations
@@ -10,264 +11,543 @@ from typing import Dict, List
 from score_report import (
     Finding,
     STATUS_EMOJI,
-    SEVERITY_EMOJI,
     assemble_findings,
     _score_from_findings,
     _status_label,
 )
 
 # ---------------------------------------------------------------------------
-# Colour palette
+# CSS — full inline stylesheet
 # ---------------------------------------------------------------------------
 
-_COLOR = {
-    "pass":        {"bg": "#dcfce7", "text": "#15803d", "border": "#86efac"},
-    "warning":     {"bg": "#fef9c3", "text": "#a16207", "border": "#fde047"},
-    "fail":        {"bg": "#fee2e2", "text": "#b91c1c", "border": "#fca5a5"},
-    "unknown":     {"bg": "#f3f4f6", "text": "#4b5563", "border": "#d1d5db"},
-    "data_needed": {"bg": "#eff6ff", "text": "#1d4ed8", "border": "#93c5fd"},
-    "high":        "#ef4444",
-    "medium":      "#f59e0b",
-    "low":         "#22c55e",
+_CSS = """
+:root {
+  --bg:            #F7F6F2;
+  --surface:       #FFFFFF;
+  --border:        #E2E0D8;
+  --border-light:  #EDECE7;
+
+  --ink:           #18181A;
+  --ink-2:         #4A4845;
+  --ink-3:         #908C88;
+
+  --accent:        #1F6FEB;
+
+  --pass:          #16A34A;
+  --pass-bg:       #F0FDF4;
+  --pass-border:   #BBF7D0;
+  --warn:          #CA8A04;
+  --warn-bg:       #FEFCE8;
+  --warn-border:   #FDE047;
+  --fail:          #DC2626;
+  --fail-bg:       #FEF2F2;
+  --fail-border:   #FECACA;
+  --need:          #2563EB;
+  --need-bg:       #EFF6FF;
+  --need-border:   #BFDBFE;
+
+  --r:             5px;
+  --mono: "SF Mono","Cascadia Code","Fira Code","Consolas","Courier New",monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,
+          "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
 
-_CSS = """
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #f8fafc;
-  color: #1e293b;
-  line-height: 1.6;
-  font-size: 15px;
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.container { max-width: 960px; margin: 0 auto; padding: 24px 16px 60px; }
+/* ── Header ─────────────────────────────────────────────────────── */
 
-/* ── Header ─────────────────────────────────────────────── */
-.report-header {
-  background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
+.hdr {
+  background: #111115;
   color: #fff;
-  border-radius: 12px;
-  padding: 28px 32px;
-  margin-bottom: 28px;
-}
-.report-header h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-.report-header .meta { font-size: 13px; opacity: 0.85; display: flex; gap: 20px; flex-wrap: wrap; }
-.report-header .meta span::before { content: "• "; opacity: 0.6; }
-.report-header .meta span:first-child::before { content: ""; }
-
-.update-banner {
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
-  border-radius: 8px;
-  padding: 10px 16px;
-  margin-bottom: 20px;
-  font-size: 13px;
-  color: #92400e;
+  border-bottom: 1px solid #2A2A2F;
 }
 
-/* ── Summary cards ───────────────────────────────────────── */
-.section-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 28px 0 14px;
-  padding-bottom: 6px;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-.score-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 14px;
-  margin-bottom: 8px;
-}
-
-.score-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 18px 16px;
+.hdr-inner {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 28px 28px 26px;
   display: flex;
-  align-items: center;
-  gap: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
 }
 
-.score-circle {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.score-circle.pass    { background: #dcfce7; color: #15803d; }
-.score-circle.warning { background: #fef9c3; color: #a16207; }
-.score-circle.fail    { background: #fee2e2; color: #b91c1c; }
-.score-circle.na      { background: #f1f5f9; color: #64748b; }
+.hdr-left { min-width: 0; }
 
-.score-info { min-width: 0; }
-.score-info .mod-name { font-weight: 600; font-size: 13px; color: #475569; line-height: 1.3; }
-.score-info .score-label { font-size: 20px; font-weight: 700; color: #1e293b; }
-
-/* ── Priority list ───────────────────────────────────────── */
-.severity-group { margin-bottom: 24px; }
-
-.severity-header {
+.hdr-eyebrow {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 10px;
+}
+
+.hdr-wordmark {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #4B6FEF;
+  background: rgba(75,111,239,.12);
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.hdr-dot {
+  width: 4px;
+  height: 4px;
+  background: #3A3A40;
+  border-radius: 50%;
+}
+
+.hdr-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #5A5A62;
+  letter-spacing: .04em;
+}
+
+.hdr-url {
+  font-family: var(--mono);
+  font-size: 17px;
+  font-weight: 500;
+  color: #F0EEE8;
+  word-break: break-all;
+  line-height: 1.45;
+  letter-spacing: -.01em;
+}
+
+.hdr-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.hdr-lang {
+  font-size: 11px;
+  color: #5A5A62;
+  font-family: var(--mono);
+}
+
+/* ── Update banner ───────────────────────────────────────────────── */
+
+.update-banner {
+  max-width: 880px;
+  margin: 20px auto 0;
+  padding: 0 28px;
+}
+
+.update-inner {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-radius: var(--r);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #713F12;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* ── Main layout ─────────────────────────────────────────────────── */
+
+.wrap {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 36px 28px 80px;
+}
+
+/* ── Section headings ────────────────────────────────────────────── */
+
+.sec {
+  margin-bottom: 48px;
+}
+
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sec-n {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: .06em;
+  flex-shrink: 0;
+}
+
+.sec-title {
   font-size: 14px;
   font-weight: 700;
-  margin-bottom: 10px;
-  cursor: pointer;
-  user-select: none;
+  color: var(--ink);
+  letter-spacing: -.01em;
 }
-.severity-header .badge-count {
-  background: #e2e8f0;
-  color: #475569;
-  border-radius: 999px;
-  padding: 1px 9px;
-  font-size: 12px;
+
+/* ── Score grid ──────────────────────────────────────────────────── */
+
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 10px;
+}
+
+.sc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px 16px 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* thin top accent bar */
+.sc-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.sc-card.pass::before   { background: var(--pass); }
+.sc-card.warning::before{ background: var(--warn); }
+.sc-card.fail::before   { background: var(--fail); }
+.sc-card.na::before     { background: var(--border); }
+
+.sc-num {
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.03em;
+  margin-bottom: 10px;
+}
+.sc-num.pass    { color: var(--pass); }
+.sc-num.warning { color: var(--warn); }
+.sc-num.fail    { color: var(--fail); }
+.sc-num.na      { color: var(--ink-3); }
+
+.sc-track {
+  height: 3px;
+  background: var(--border-light);
+  border-radius: 99px;
+  margin-bottom: 9px;
+  overflow: hidden;
+}
+
+.sc-fill {
+  height: 100%;
+  border-radius: 99px;
+}
+.sc-fill.pass    { background: var(--pass); }
+.sc-fill.warning { background: var(--warn); }
+.sc-fill.fail    { background: var(--fail); }
+.sc-fill.na      { background: var(--border); }
+
+.sc-label {
+  font-size: 11px;
   font-weight: 600;
+  color: var(--ink-3);
+  line-height: 1.3;
+  letter-spacing: .01em;
 }
-.severity-header .toggle-icon { margin-left: auto; color: #94a3b8; font-size: 12px; }
 
-.finding-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-left: 4px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 16px 18px;
-  margin-bottom: 10px;
-  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+/* ── Severity groups ─────────────────────────────────────────────── */
+
+.sev-group { margin-bottom: 20px; }
+
+.sev-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
 }
-.finding-card.high    { border-left-color: #ef4444; }
-.finding-card.medium  { border-left-color: #f59e0b; }
-.finding-card.low     { border-left-color: #22c55e; }
-.finding-card.data_needed { border-left-color: #3b82f6; }
 
-.finding-top {
+.sev-label.high   { color: var(--fail); }
+.sev-label.medium { color: var(--warn); }
+.sev-label.low    { color: var(--pass); }
+
+.sev-pill {
+  background: currentColor;
+  opacity: .15;
+  width: 20px;
+  height: 2px;
+  border-radius: 99px;
+}
+
+.sev-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  opacity: .6;
+}
+
+/* ── Finding cards ───────────────────────────────────────────────── */
+
+.fc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: var(--r);
+  padding: 14px 16px;
+  margin-bottom: 7px;
+}
+.fc.high   { border-left-color: var(--fail); }
+.fc.medium { border-left-color: var(--warn); }
+.fc.low    { border-left-color: var(--pass); }
+.fc.data_needed { border-left-color: var(--need); }
+
+.fc-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 10px;
 }
-.finding-title { font-weight: 600; font-size: 14px; color: #1e293b; }
-.finding-module { font-size: 11px; color: #64748b; font-weight: 500; margin-top: 2px; }
 
-.badges { display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
-.badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
+.fc-meta {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 4px;
+}
+
+.fc-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.fc-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+.bdg {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
   white-space: nowrap;
 }
-.badge.status-pass    { background: #dcfce7; color: #15803d; }
-.badge.status-warning { background: #fef9c3; color: #a16207; }
-.badge.status-fail    { background: #fee2e2; color: #b91c1c; }
-.badge.status-unknown { background: #f1f5f9; color: #64748b; }
-.badge.status-data_needed { background: #dbeafe; color: #1d4ed8; }
-.badge.conf-high   { background: #f0fdf4; color: #166534; }
-.badge.conf-medium { background: #fffbeb; color: #92400e; }
-.badge.conf-low    { background: #fef2f2; color: #991b1b; }
 
-.finding-body { font-size: 13px; }
-.finding-body .row { display: flex; gap: 8px; margin-bottom: 5px; align-items: baseline; }
-.finding-body .label { color: #64748b; font-weight: 600; min-width: 72px; flex-shrink: 0; }
-.finding-body .value { color: #334155; }
-.finding-body .fix-value { color: #15803d; font-weight: 500; }
+.bdg.s-pass     { background: var(--pass-bg);   color: var(--pass);  border-color: var(--pass-border); }
+.bdg.s-warning  { background: var(--warn-bg);   color: var(--warn);  border-color: var(--warn-border); }
+.bdg.s-fail     { background: var(--fail-bg);   color: var(--fail);  border-color: var(--fail-border); }
+.bdg.s-unknown  { background: #F4F4F5; color: #71717A; border-color: #E4E4E7; }
+.bdg.s-data_needed { background: var(--need-bg); color: var(--need); border-color: var(--need-border); }
 
-/* ── Detail table ────────────────────────────────────────── */
-details { margin-bottom: 12px; }
+.bdg.c-high   { background: #FFF7F7; color: #7F1D1D; border-color: #FECACA; }
+.bdg.c-medium { background: #FEFCE8; color: #713F12; border-color: #FDE68A; }
+.bdg.c-low    { background: #F0FDF4; color: #14532D; border-color: #BBF7D0; }
+
+/* Finding rows: evidence / impact / fix */
+.fc-body { font-size: 12.5px; color: var(--ink-2); }
+
+.fc-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 8px;
+  margin-bottom: 5px;
+  align-items: baseline;
+}
+.fc-row:last-child { margin-bottom: 0; }
+
+.fc-lbl {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-top: 1px;
+}
+
+.fc-val { line-height: 1.55; }
+
+.fc-val.evidence {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
+  word-break: break-all;
+  color: var(--ink-2);
+}
+
+.fc-val.fix { color: #15803D; font-weight: 500; }
+
+/* ── Data-needed section ─────────────────────────────────────────── */
+
+.dn-note {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 10px;
+}
+
+.dn-card {
+  background: var(--need-bg);
+  border: 1px solid var(--need-border);
+  border-left: 3px solid var(--need);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  margin-bottom: 7px;
+  font-size: 12.5px;
+}
+
+.dn-title { font-weight: 700; color: var(--need); margin-bottom: 4px; }
+.dn-ev   { color: var(--ink-2); margin-bottom: 3px; }
+.dn-fix  { color: #1D4ED8; font-size: 11.5px; }
+
+/* ── Detail collapsibles ─────────────────────────────────────────── */
+
+details {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
 details summary {
+  padding: 11px 14px;
   cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  color: #475569;
-  padding: 10px 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  list-style: none;
+  user-select: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  list-style: none;
   gap: 8px;
 }
 details summary::-webkit-details-marker { display: none; }
-details[open] summary { border-radius: 8px 8px 0 0; border-bottom-color: transparent; }
-details summary .arrow { margin-left: auto; color: #94a3b8; transition: transform .2s; }
-details[open] summary .arrow { transform: rotate(90deg); }
-
-.detail-table {
-  border: 1px solid #e2e8f0;
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  overflow: hidden;
+details[open] summary {
+  border-bottom: 1px solid var(--border-light);
+  color: var(--ink);
 }
-.detail-row {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 13px;
-}
-.detail-row:last-child { border-bottom: none; }
-.detail-row:nth-child(even) { background: #f8fafc; }
-.detail-row .dc-status { width: 44px; padding: 10px 12px; text-align: center; flex-shrink: 0; }
-.detail-row .dc-check { width: 200px; padding: 10px 12px; font-weight: 600; color: #334155; flex-shrink: 0; }
-.detail-row .dc-evidence { flex: 1; padding: 10px 12px; color: #475569; }
 
-/* ── Data needed section ─────────────────────────────────── */
-.data-needed-card {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  padding: 14px 18px;
-  margin-bottom: 10px;
-  font-size: 13px;
+.arr {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  transition: transform .15s ease;
 }
-.data-needed-card .dn-title { font-weight: 600; color: #1d4ed8; margin-bottom: 6px; }
-.data-needed-card .dn-row { color: #334155; margin-bottom: 4px; }
-.data-needed-card .dn-fix { color: #1d4ed8; }
+details[open] .arr { transform: rotate(90deg); }
 
-/* ── Disclaimer ──────────────────────────────────────────── */
-.disclaimer {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 14px 18px;
+.dt-row {
+  display: grid;
+  grid-template-columns: 36px 200px 1fr;
+  border-bottom: 1px solid var(--border-light);
   font-size: 12px;
-  color: #64748b;
-  margin-top: 32px;
+  align-items: baseline;
 }
-.disclaimer ul { padding-left: 18px; }
-.disclaimer li { margin-bottom: 3px; }
-.footer { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 20px; }
-.footer a { color: #3b82f6; text-decoration: none; }
+.dt-row:last-child { border-bottom: none; }
+.dt-row:nth-child(even) { background: var(--bg); }
+
+.dt-s  { padding: 8px 0 8px 14px; text-align: center; }
+.dt-c  { padding: 8px 10px; font-weight: 600; color: var(--ink-2); }
+.dt-e  {
+  padding: 8px 14px 8px 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  word-break: break-word;
+}
+
+/* ── Disclaimer ──────────────────────────────────────────────────── */
+
+.disc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  margin-top: 40px;
+}
+
+.disc-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+
+.disc ul {
+  padding-left: 16px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.75;
+}
+
+.foot {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  padding: 20px 0 0;
+  letter-spacing: .02em;
+}
+.foot a { color: var(--accent); text-decoration: none; }
+
+/* ── Print ───────────────────────────────────────────────────────── */
 
 @media print {
-  body { background: #fff; }
-  .container { max-width: 100%; padding: 0; }
-  .report-header { border-radius: 0; }
-  details { display: block; }
+  body { background: #fff; font-size: 12px; }
+  .hdr { background: #111115 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sc-card::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sc-fill   { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .fc        { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .wrap { padding: 20px; }
+  details { display: block !important; }
   details summary { display: none; }
-  .detail-table { border: 1px solid #e2e8f0; border-radius: 4px; }
+  .sev-label, .fc-badges { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 """
+
+# SVG chevron (inline, no external dependency)
+_CHEVRON = '<svg class="arr" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,3 11,8 5,13"/></svg>'
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 def _esc(text: str) -> str:
-    """Minimal HTML escaping."""
     return (
         str(text)
         .replace("&", "&amp;")
@@ -277,95 +557,88 @@ def _esc(text: str) -> str:
     )
 
 
-def _status_badge(status: str) -> str:
+def _status_bdg(status: str) -> str:
     labels = {
-        "pass": "PASS", "warning": "WARNING", "fail": "FAIL",
-        "unknown": "UNKNOWN", "data_needed": "DATA NEEDED",
+        "pass": "PASS",
+        "warning": "WARN",
+        "fail": "FAIL",
+        "unknown": "N/A",
+        "data_needed": "DATA",
     }
-    label = labels.get(status, status.upper())
-    return f'<span class="badge status-{status}">{label}</span>'
+    return f'<span class="bdg s-{status}">{labels.get(status, status.upper())}</span>'
 
 
-def _conf_badge(confidence: str, lang: str) -> str:
-    conf_labels_zh = {"high": "可信度：高", "medium": "可信度：中", "low": "可信度：低"}
-    conf_labels_en = {"high": "Confidence: high", "medium": "Confidence: med", "low": "Confidence: low"}
-    labels = conf_labels_zh if lang == "zh" else conf_labels_en
-    label = labels.get(confidence, confidence)
-    return f'<span class="badge conf-{confidence}">{_esc(label)}</span>'
+def _conf_bdg(conf: str, lang: str) -> str:
+    if lang == "zh":
+        labels = {"high": "高置信", "medium": "中置信", "low": "低置信"}
+    else:
+        labels = {"high": "CONF·H", "medium": "CONF·M", "low": "CONF·L"}
+    return f'<span class="bdg c-{conf}">{labels.get(conf, conf.upper())}</span>'
 
 
-def _score_card(module: str, score: int, lang: str) -> str:
-    label = _status_label(score)
-    score_display = str(score) if score >= 0 else "—"
+def _score_card(module: str, score: int) -> str:
+    lbl = _status_label(score)
+    num = str(score) if score >= 0 else "—"
+    pct = f"{min(score, 100)}%" if score >= 0 else "0%"
     return f"""
-    <div class="score-card">
-      <div class="score-circle {label}">{score_display}</div>
-      <div class="score-info">
-        <div class="mod-name">{_esc(module)}</div>
-        <div class="score-label">{score_display}/100</div>
-      </div>
-    </div>"""
+<div class="sc-card {lbl}">
+  <div class="sc-num {lbl}">{num}</div>
+  <div class="sc-track"><div class="sc-fill {lbl}" style="width:{pct}"></div></div>
+  <div class="sc-label">{_esc(module)}</div>
+</div>"""
 
 
 def _finding_card(f: Finding, idx: int, lang: str) -> str:
-    labels = {
-        "en": {"evidence": "Evidence", "impact": "Impact", "fix": "Fix"},
-        "zh": {"evidence": "证据", "impact": "影响", "fix": "修复建议"},
-    }
-    L = labels.get(lang, labels["en"])
+    L = {
+        "en": {"ev": "Evidence", "impact": "Impact", "fix": "Fix"},
+        "zh": {"ev": "证据", "impact": "影响", "fix": "修复"},
+    }.get(lang, {"ev": "Evidence", "impact": "Impact", "fix": "Fix"})
 
-    fix_html = ""
+    fix_row = ""
     if f.fix:
-        fix_html = f"""
-        <div class="row">
-          <span class="label">✅ {L['fix']}:</span>
-          <span class="fix-value">{_esc(f.fix)}</span>
-        </div>"""
+        fix_row = f"""
+      <div class="fc-row">
+        <span class="fc-lbl">{L['fix']}</span>
+        <span class="fc-val fix">{_esc(f.fix)}</span>
+      </div>"""
 
     return f"""
-    <div class="finding-card {_esc(f.severity)}">
-      <div class="finding-top">
-        <div>
-          <div class="finding-title">{idx}. {_esc(f.check.replace('_', ' ').title())}</div>
-          <div class="finding-module">{_esc(f.module)}</div>
-        </div>
-        <div class="badges">
-          {_status_badge(f.status)}
-          {_conf_badge(f.confidence, lang)}
-        </div>
-      </div>
-      <div class="finding-body">
-        <div class="row">
-          <span class="label">{L['evidence']}:</span>
-          <span class="value">{_esc(f.evidence)}</span>
-        </div>
-        <div class="row">
-          <span class="label">{L['impact']}:</span>
-          <span class="value">{_esc(f.impact)}</span>
-        </div>
-        {fix_html}
-      </div>
-    </div>"""
+<div class="fc {f.severity}">
+  <div class="fc-head">
+    <div>
+      <div class="fc-meta">{_esc(f.module)}</div>
+      <div class="fc-title">{idx}. {_esc(f.check.replace('_', ' ').title())}</div>
+    </div>
+    <div class="fc-badges">
+      {_status_bdg(f.status)}
+      {_conf_bdg(f.confidence, lang)}
+    </div>
+  </div>
+  <div class="fc-body">
+    <div class="fc-row">
+      <span class="fc-lbl">{L['ev']}</span>
+      <span class="fc-val evidence">{_esc(f.evidence)}</span>
+    </div>
+    <div class="fc-row">
+      <span class="fc-lbl">{L['impact']}</span>
+      <span class="fc-val">{_esc(f.impact)}</span>
+    </div>{fix_row}
+  </div>
+</div>"""
 
 
-def _detail_section(module: str, findings: List[Finding], lang: str) -> str:
-    rows = ""
-    for f in findings:
-        rows += f"""
-        <div class="detail-row">
-          <div class="dc-status">{STATUS_EMOJI.get(f.status, '')}</div>
-          <div class="dc-check">{_esc(f.check)}</div>
-          <div class="dc-evidence">{_esc(f.evidence)}</div>
-        </div>"""
-
+def _detail_block(module: str, findings: List[Finding]) -> str:
+    rows = "".join(f"""
+    <div class="dt-row">
+      <div class="dt-s">{STATUS_EMOJI.get(f.status, '')}</div>
+      <div class="dt-c">{_esc(f.check)}</div>
+      <div class="dt-e">{_esc(f.evidence)}</div>
+    </div>""" for f in findings)
     return f"""
-    <details>
-      <summary>
-        {_esc(module)}
-        <span class="arrow">▶</span>
-      </summary>
-      <div class="detail-table">{rows}</div>
-    </details>"""
+<details>
+  <summary>{_esc(module)}{_CHEVRON}</summary>
+  {rows}
+</details>"""
 
 
 # ---------------------------------------------------------------------------
@@ -373,172 +646,197 @@ def _detail_section(module: str, findings: List[Finding], lang: str) -> str:
 # ---------------------------------------------------------------------------
 
 def generate_html_report(audit_data: Dict, language: str = "en") -> str:
-    url = audit_data.get("url", "")
-    date = audit_data.get("date", "")
-    lang_detected = audit_data.get("detected_language", "en")
-    update_banner_text = audit_data.get("_update_notice", "")
+    url          = audit_data.get("url", "")
+    date         = audit_data.get("date", "")
+    lang_tag     = audit_data.get("detected_language", language)
+    update_text  = audit_data.get("_update_notice", "").strip()
 
     all_module_findings = assemble_findings(audit_data)
-    scores = {mod: _score_from_findings(findings) for mod, findings in all_module_findings.items()}
+    scores = {mod: _score_from_findings(f) for mod, f in all_module_findings.items()}
 
     # Sort priority findings
-    severity_order = {"high": 0, "medium": 1, "low": 2}
-    status_order   = {"fail": 0, "warning": 1, "unknown": 2, "pass": 3}
-    priority_findings = [
-        f for findings in all_module_findings.values()
-        for f in findings if f.status in ("fail", "warning", "unknown")
-    ]
-    priority_findings.sort(key=lambda f: (severity_order.get(f.severity, 9), status_order.get(f.status, 9)))
-
-    data_needed_findings = [
-        f for findings in all_module_findings.values()
-        for f in findings if f.status == "data_needed"
-    ]
+    _sev = {"high": 0, "medium": 1, "low": 2}
+    _sta = {"fail": 0, "warning": 1, "unknown": 2, "pass": 3}
+    prio = sorted(
+        [f for flist in all_module_findings.values() for f in flist
+         if f.status in ("fail", "warning", "unknown")],
+        key=lambda f: (_sev.get(f.severity, 9), _sta.get(f.status, 9)),
+    )
+    dn = [f for flist in all_module_findings.values() for f in flist
+          if f.status == "data_needed"]
 
     lang = language
 
-    # ── Localisation strings ──────────────────────────────────
+    # ── i18n strings ──────────────────────────────────────────────
     if lang == "zh":
-        title_str       = f"Google SEO 诊断报告 — {_esc(url)}"
-        heading_str     = "Google SEO 诊断报告"
-        meta_url        = f"目标：{_esc(url)}"
-        meta_date       = f"日期：{date}"
-        meta_lang       = f"语言：{lang_detected}"
-        summary_title   = "📊 总览"
-        priority_title  = "🔧 优先修复清单"
-        detail_title    = "📋 各模块详细诊断"
-        dn_title        = "📊 数据待补充"
-        dn_subtitle     = "以下检测项因数据缺失未能运行，不代表网站存在问题。"
-        dn_how          = "解决方式："
-        sev_labels      = {"high": "🔴 高优先级（立即修复）", "medium": "🟡 中优先级（本月内处理）", "low": "🟢 低优先级（持续改进）"}
-        disc_title      = "免责说明"
-        disc_items      = [
-            "site: 指令结果仅为估算，非精确收录量；请使用 GSC 覆盖率报告获取准确数据。",
-            "域名年龄为历史信任参考，非直接排名因子。",
-            "E-E-A-T 信号为页面表层扫描，可信度为中。",
-            "DA/DR 权威评分无法从 GSC 获取；请使用 Ahrefs/Moz/Semrush 导出数据。",
+        brand       = "SEO 诊断"
+        lbl_target  = "目标"
+        lbl_date    = "日期"
+        lbl_lang    = f"语言：{lang_tag}"
+        s_summary   = "总览"
+        s_priority  = "优先修复"
+        s_detail    = "模块详情"
+        s_dn        = "数据待补充"
+        dn_note     = "以下检测因数据缺失未能运行，不代表网站存在问题。"
+        dn_how      = "解决："
+        sev_lbl     = {"high": "高优先级 — 立即修复", "medium": "中优先级 — 本月处理", "low": "低优先级 — 持续改进"}
+        disc_head   = "免责说明"
+        disc_items  = [
+            "site: 查询结果为估算值；精确收录量请查阅 GSC 覆盖率报告。",
+            "域名年龄仅为历史信任参考，非直接排名因子。",
+            "E-E-A-T 信号为表层扫描，置信度为中等。",
+            "DA/DR 权威评分无法从 GSC 获取，请使用 Ahrefs/Moz/Semrush。",
         ]
-        footer_str      = f'由 <a href="https://github.com/jiguang9/google-seo-audit">google-seo-audit</a> 生成'
+        footer_link = f'由 <a href="https://github.com/jiguang9/google-seo-audit">google-seo-audit</a> 生成'
+        no_issues   = "未发现问题。"
     else:
-        title_str       = f"Google SEO Audit Report — {_esc(url)}"
-        heading_str     = "Google SEO Audit Report"
-        meta_url        = f"Target: {_esc(url)}"
-        meta_date       = f"Date: {date}"
-        meta_lang       = f"Language: {lang_detected}"
-        summary_title   = "📊 Summary"
-        priority_title  = "🔧 Priority Fix List"
-        detail_title    = "📋 Detailed Module Reports"
-        dn_title        = "📊 Data Needed"
-        dn_subtitle     = "These checks could not run because data was unavailable. They are not site errors."
-        dn_how          = "How to fix:"
-        sev_labels      = {"high": "🔴 High Severity — Fix immediately", "medium": "🟡 Medium Severity — Fix this month", "low": "🟢 Low Severity — Continuous improvement"}
-        disc_title      = "Disclaimer"
-        disc_items      = [
-            "site: operator results are rough estimates; use GSC Coverage for precise index counts.",
-            "Domain age is a historical trust indicator, not a direct ranking factor.",
-            "E-E-A-T findings are surface-level with medium confidence.",
-            "DA/DR scores are unavailable from GSC; use Ahrefs/Moz/Semrush for authority data.",
+        brand       = "SEO Audit"
+        lbl_target  = "Target"
+        lbl_date    = "Date"
+        lbl_lang    = f"lang: {lang_tag}"
+        s_summary   = "Summary"
+        s_priority  = "Priority Fixes"
+        s_detail    = "Module Detail"
+        s_dn        = "Data Needed"
+        dn_note     = "These checks couldn't run due to missing data — not site errors."
+        dn_how      = "How to fix:"
+        sev_lbl     = {"high": "High — Fix immediately", "medium": "Medium — Fix this month", "low": "Low — Continuous improvement"}
+        disc_head   = "Disclaimer"
+        disc_items  = [
+            "site: results are estimates; use GSC Coverage for precise index counts.",
+            "Domain age is a historical trust signal, not a direct ranking factor.",
+            "E-E-A-T findings are surface-level; confidence is medium.",
+            "DA/DR scores require Ahrefs/Moz/Semrush — unavailable from GSC.",
         ]
-        footer_str      = f'Generated by <a href="https://github.com/jiguang9/google-seo-audit">google-seo-audit</a>'
+        footer_link = f'Generated by <a href="https://github.com/jiguang9/google-seo-audit">google-seo-audit</a>'
+        no_issues   = "No issues found."
 
-    # ── Update banner ────────────────────────────────────────
+    # ── Sub-components ─────────────────────────────────────────────
+
     update_html = ""
-    if update_banner_text:
-        update_html = f'<div class="update-banner">⬆️ {_esc(update_banner_text.strip())}</div>'
+    if update_text:
+        update_html = f"""
+<div class="update-banner">
+  <div class="update-inner">⬆ {_esc(update_text)}</div>
+</div>"""
 
-    # ── Score cards ──────────────────────────────────────────
-    score_cards = "".join(_score_card(mod, s, lang) for mod, s in scores.items())
+    score_cards = "".join(_score_card(mod, s) for mod, s in scores.items())
 
-    # ── Priority list ────────────────────────────────────────
-    groups: Dict[str, List] = {"high": [], "medium": [], "low": []}
-    for f in priority_findings:
+    # Priority list grouped by severity
+    groups: dict = {"high": [], "medium": [], "low": []}
+    for f in prio:
         groups.setdefault(f.severity, []).append(f)
 
-    priority_html = ""
+    prio_html = ""
     counter = 1
     for sev in ("high", "medium", "low"):
         items = groups.get(sev, [])
         if not items:
             continue
-        cards_html = ""
-        for f in items:
-            cards_html += _finding_card(f, counter, lang)
-            counter += 1
-        priority_html += f"""
-        <div class="severity-group">
-          <div class="severity-header">
-            <span>{sev_labels[sev]}</span>
-            <span class="badge-count">{len(items)}</span>
-          </div>
-          {cards_html}
-        </div>"""
+        cards = "".join(_finding_card(f, counter + i, lang) for i, f in enumerate(items))
+        counter += len(items)
+        prio_html += f"""
+<div class="sev-group">
+  <div class="sev-label {sev}">
+    <span class="sev-pill"></span>
+    {sev_lbl[sev]}
+    <span class="sev-count">{len(items)}</span>
+  </div>
+  {cards}
+</div>"""
 
-    # ── Data needed ──────────────────────────────────────────
+    if not prio_html:
+        prio_html = f'<p style="font-size:13px;color:var(--ink-3)">{no_issues}</p>'
+
+    # Data-needed
     dn_html = ""
-    if data_needed_findings:
-        dn_cards = ""
-        for i, f in enumerate(data_needed_findings, 1):
-            dn_cards += f"""
-            <div class="data-needed-card">
-              <div class="dn-title">{i}. [{_esc(f.module)}] {_esc(f.check)}</div>
-              <div class="dn-row">{_esc(f.evidence)}</div>
-              <div class="dn-row dn-fix">{_esc(dn_how)} {_esc(f.fix or '')}</div>
-            </div>"""
+    if dn:
+        dn_cards = "".join(f"""
+<div class="dn-card">
+  <div class="dn-title">{i+1}. [{_esc(f.module)}] {_esc(f.check)}</div>
+  <div class="dn-ev">{_esc(f.evidence)}</div>
+  <div class="dn-fix">{_esc(dn_how)} {_esc(f.fix or '')}</div>
+</div>""" for i, f in enumerate(dn))
         dn_html = f"""
-        <div class="section-title">{dn_title}</div>
-        <p style="font-size:13px;color:#475569;margin-bottom:12px;">{dn_subtitle}</p>
-        {dn_cards}"""
+<div class="sec">
+  <div class="sec-head">
+    <span class="sec-n">04</span>
+    <span class="sec-title">📊 {s_dn}</span>
+  </div>
+  <p class="dn-note">{dn_note}</p>
+  {dn_cards}
+</div>"""
 
-    # ── Detail sections ──────────────────────────────────────
-    details_html = "".join(
-        _detail_section(mod, findings, lang)
+    detail_blocks = "".join(
+        _detail_block(mod, findings)
         for mod, findings in all_module_findings.items()
     )
 
-    # ── Disclaimer ───────────────────────────────────────────
-    disc_items_html = "".join(f"<li>{_esc(item)}</li>" for item in disc_items)
-    disclaimer_html = f"""
-    <div class="disclaimer">
-      <strong>{disc_title}</strong>
-      <ul style="margin-top:6px;">{disc_items_html}</ul>
-    </div>"""
+    disc_items_html = "".join(f"<li>{_esc(it)}</li>" for it in disc_items)
 
-    # ── Assemble ─────────────────────────────────────────────
+    # ── Final assembly ─────────────────────────────────────────────
     return f"""<!DOCTYPE html>
 <html lang="{lang}">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{title_str}</title>
-  <style>{_CSS}</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{brand} — {_esc(url)}</title>
+<style>{_CSS}</style>
 </head>
 <body>
-<div class="container">
 
-  {update_html}
-
-  <div class="report-header">
-    <h1>{heading_str}</h1>
-    <div class="meta">
-      <span>{meta_url}</span>
-      <span>{meta_date}</span>
-      <span>{meta_lang}</span>
+<header class="hdr">
+  <div class="hdr-inner">
+    <div class="hdr-left">
+      <div class="hdr-eyebrow">
+        <span class="hdr-wordmark">{brand}</span>
+        <span class="hdr-dot"></span>
+        <span class="hdr-date">{_esc(date)}</span>
+      </div>
+      <div class="hdr-url">{_esc(url)}</div>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-lang">{_esc(lbl_lang)}</div>
     </div>
   </div>
+</header>
 
-  <div class="section-title">{summary_title}</div>
-  <div class="score-grid">{score_cards}</div>
+{update_html}
 
-  <div class="section-title">{priority_title}</div>
-  {priority_html if priority_html else '<p style="color:#64748b;font-size:13px;">No issues found.</p>'}
+<div class="wrap">
+
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-n">01</span>
+      <span class="sec-title">{s_summary}</span>
+    </div>
+    <div class="score-grid">{score_cards}</div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-n">02</span>
+      <span class="sec-title">{s_priority}</span>
+    </div>
+    {prio_html}
+  </div>
 
   {dn_html}
 
-  <div class="section-title">{detail_title}</div>
-  {details_html}
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-n">{"05" if dn else "03"}</span>
+      <span class="sec-title">{s_detail}</span>
+    </div>
+    {detail_blocks}
+  </div>
 
-  {disclaimer_html}
-  <div class="footer">{footer_str}</div>
+  <div class="disc">
+    <div class="disc-title">{disc_head}</div>
+    <ul>{disc_items_html}</ul>
+  </div>
+
+  <div class="foot">{footer_link}</div>
 
 </div>
 </body>
