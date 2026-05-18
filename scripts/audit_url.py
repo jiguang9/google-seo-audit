@@ -44,6 +44,7 @@ from parse_html import (
 )
 from parse_sitemap import find_sitemap_url, fetch_sitemap, parse_sitemap_xml, validate_sitemap
 from score_report import generate_report
+from report_html import generate_html_report
 from check_version import check_for_update, format_update_banner
 
 
@@ -92,6 +93,7 @@ def run_audit(
     gsc_file: Optional[str] = None,
     output_json: bool = False,
     github_owner: Optional[str] = None,
+    output_format: str = "md",
 ) -> str:
     """
     Full Google SEO audit pipeline.
@@ -216,12 +218,16 @@ def run_audit(
     # ------------------------------------------------------------------
     print("[audit] Generating report ...", flush=True)
     if output_json:
-        # Sanitise non-serialisable objects before dumping
         def _serial(obj):
             if hasattr(obj, "__dataclass_fields__"):
                 return obj.__dict__
             return str(obj)
         return json.dumps(audit_data, default=_serial, ensure_ascii=False, indent=2)
+
+    if output_format == "html":
+        # Pass update notice into audit_data so HTML generator can render it
+        audit_data["_update_notice"] = update_banner.strip().lstrip(">").strip()
+        return generate_html_report(audit_data, language=report_language)
 
     report = generate_report(audit_data, language=report_language)
     return update_banner + report
@@ -240,6 +246,7 @@ Examples:
   python audit_url.py https://example.com
   python audit_url.py https://example.com --psi-key=AIzaSy...
   python audit_url.py https://example.com --gsc=./gsc-export.csv
+  python audit_url.py https://example.com --format=html --output=report.html
   python audit_url.py https://example.com --output=report.md
         """,
     )
@@ -253,7 +260,10 @@ Examples:
     parser.add_argument("--json", dest="output_json", action="store_true",
                         help="Output raw audit data as JSON instead of markdown")
     parser.add_argument("--github-owner", dest="github_owner", default=None,
-                        help="GitHub username/org for version check (e.g. --github-owner=myuser)")
+                        help="GitHub username/org for version check (e.g. --github-owner=jiguang9)")
+    parser.add_argument("--format", dest="output_format", default="md",
+                        choices=["md", "html"],
+                        help="Output format: md (default) or html")
     return parser.parse_args(argv)
 
 
@@ -265,6 +275,7 @@ def main(argv=None):
         gsc_file=args.gsc_file,
         output_json=args.output_json,
         github_owner=args.github_owner,
+        output_format=args.output_format,
     )
 
     if args.output_file:

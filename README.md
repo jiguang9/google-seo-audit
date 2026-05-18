@@ -135,6 +135,7 @@ python audit_url.py https://example.com --github-owner=jiguang9
 | `url` | Yes | Target website URL |
 | `--psi-key` | No | [PageSpeed Insights API key](https://developers.google.com/speed/docs/insights/v5/get-started). Free; significantly increases the unauthenticated quota. Try without first — only needed if rate-limited. Can also be set via `PAGESPEED_API_KEY` env var. |
 | `--gsc` | No | Path to a GSC CSV export. Supports 6 export types; auto-detected. |
+| `--format` | No | Output format: `md` (default) or `html` (styled, self-contained HTML) |
 | `--output` | No | Save report to a file instead of stdout |
 | `--json` | No | Output raw audit data as JSON |
 | `--github-owner` | No | Your GitHub username. Enables version check — audit report will include an update notice if a newer release exists. |
