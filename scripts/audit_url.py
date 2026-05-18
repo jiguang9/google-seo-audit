@@ -92,7 +92,7 @@ def run_audit(
     psi_key: Optional[str] = None,
     gsc_file: Optional[str] = None,
     output_json: bool = False,
-    github_owner: Optional[str] = None,
+    github_owner: Optional[str] = "jiguang9",
     output_format: str = "md",
 ) -> str:
     """
@@ -259,8 +259,8 @@ Examples:
                         help="Save report to file instead of stdout")
     parser.add_argument("--json", dest="output_json", action="store_true",
                         help="Output raw audit data as JSON instead of markdown")
-    parser.add_argument("--github-owner", dest="github_owner", default=None,
-                        help="GitHub username/org for version check (e.g. --github-owner=jiguang9)")
+    parser.add_argument("--github-owner", dest="github_owner", default="jiguang9",
+                        help="GitHub username for version check (default: jiguang9). Pass empty string to disable.")
     parser.add_argument("--format", dest="output_format", default="md",
                         choices=["md", "html"],
                         help="Output format: md (default) or html")

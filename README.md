@@ -80,15 +80,17 @@ cd ~/.claude/skills/google-seo-audit   # or wherever you cloned it
 git pull
 ```
 
-**Automatic update notice**: if you pass `--github-owner=jiguang9` when running the audit,
-the skill checks the latest GitHub release and prepends a notice to the report if a newer
-version is available. The check is non-blocking — it never delays or fails the audit.
+**Automatic update notice**: every audit automatically checks GitHub for a newer release.
+If one is found, a notice appears at the top of the report — no configuration needed.
+The check is non-blocking and silent on failure (network issues, no releases yet, etc.).
+
+To disable the automatic check:
 
 ```bash
-/google-seo-audit https://example.com --github-owner=jiguang9
+python scripts/audit_url.py https://example.com --github-owner=""
 ```
 
-To get notified of new releases without running an audit, watch this repository:
+To get notified of new releases proactively (without running an audit), watch this repo:
 **GitHub → Watch → Custom → Releases**.
 
 ---
@@ -138,7 +140,7 @@ python audit_url.py https://example.com --github-owner=jiguang9
 | `--format` | No | Output format: `md` (default) or `html` (styled, self-contained HTML) |
 | `--output` | No | Save report to a file instead of stdout |
 | `--json` | No | Output raw audit data as JSON |
-| `--github-owner` | No | Your GitHub username. Enables version check — audit report will include an update notice if a newer release exists. |
+| `--github-owner` | No | GitHub username for version check. Defaults to `jiguang9` — **runs automatically on every audit**. Pass empty string `""` to disable. |
 
 ---
 

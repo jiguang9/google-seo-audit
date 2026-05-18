@@ -91,11 +91,14 @@ each step manually using the available tools.
 ### Step 0 — Check bash availability and version
 
 ```bash
-# Markdown report (default)
-python scripts/audit_url.py {url} [--psi-key={key}] [--gsc={file}] [--github-owner={owner}] --output=report.md
+# Markdown report (default) — version check runs automatically
+python scripts/audit_url.py {url} [--psi-key={key}] [--gsc={file}] --output=report.md
 
 # HTML report (styled, self-contained)
 python scripts/audit_url.py {url} [--psi-key={key}] [--gsc={file}] --format=html --output=report.html
+
+# Disable automatic version check
+python scripts/audit_url.py {url} --github-owner=""
 ```
 
 If bash / Python is available: run the command above and output the report.  

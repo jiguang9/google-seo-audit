@@ -51,6 +51,10 @@ def check_for_update(owner: str, repo: str = "google-seo-audit") -> dict:
           "error": None or "reason check failed"
         }
     """
+    # Empty string owner = user explicitly disabled the check
+    if not owner or not owner.strip():
+        return {"update_available": False, "error": "version check disabled", "notice": None}
+
     local = _read_local_version()
     result = {
         "local_version": local,
