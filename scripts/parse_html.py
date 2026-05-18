@@ -39,7 +39,14 @@ def detect_language(html: str, url: str = "") -> Dict:
         or "en"
     )
 
-    lang_code = detected.split("-")[0].lower()
+    # Split by both '-' and '_' to handle zh-CN, zh_CN, zh_Hans, etc.
+    lang_code = re.split(r"[-_]", detected)[0].lower()
+
+    # Map country-code-as-language mistakes common on Chinese sites:
+    # <html lang="cn"> or <html lang="tw"> or <html lang="hk">
+    _COUNTRY_TO_LANG = {"cn": "zh", "tw": "zh", "hk": "zh"}
+    lang_code = _COUNTRY_TO_LANG.get(lang_code, lang_code)
+
     is_cjk = lang_code in ("zh", "ja", "ko")
 
     return {
@@ -109,6 +116,8 @@ def parse_headings(html: str) -> Dict:
             headings.append({"level": level, "text": tag.get_text(strip=True)})
 
     h1_tags = [h for h in headings if h["level"] == 1]
+    h1_with_text = [h for h in h1_tags if h["text"]]
+    h1_empty = len(h1_tags) - len(h1_with_text)
     levels_present = sorted({h["level"] for h in headings})
 
     # Detect level skips (e.g. H1 → H3 with no H2)
@@ -117,17 +126,25 @@ def parse_headings(html: str) -> Dict:
         if levels_present[i + 1] - levels_present[i] > 1:
             skips.append(f"H{levels_present[i]} → H{levels_present[i+1]}")
 
+    # Evidence: distinguish empty H1s from content-bearing ones
+    h1_summary = f"{len(h1_tags)} H1 tag(s)"
+    if h1_empty:
+        h1_summary += f" ({h1_empty} empty/hidden)"
+    sample_texts = [h["text"] for h in h1_with_text[:3]]
+
     return {
         "headings": headings,
         "h1_count": len(h1_tags),
-        "h1_texts": [h["text"] for h in h1_tags],
+        "h1_with_text_count": len(h1_with_text),
+        "h1_empty_count": h1_empty,
+        "h1_texts": sample_texts,
         "levels_present": levels_present,
         "level_skips": skips,
         # Multiple H1 is a structural signal, not a confirmed penalty
         "multiple_h1_risk": len(h1_tags) > 1,
         "no_h1": len(h1_tags) == 0,
         "evidence": (
-            f"{len(h1_tags)} H1 tag(s) found; "
+            f"{h1_summary}; "
             f"heading levels present: {levels_present}; "
             f"level skips: {skips or 'none'}"
         ),

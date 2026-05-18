@@ -219,6 +219,14 @@ class TestHTMLParsing(unittest.TestCase):
         self.assertEqual(result["h1_count"], 2)
         self.assertTrue(result["multiple_h1_risk"])
 
+    def test_parse_headings_empty_h1_counted_separately(self):
+        html = self._page(body="<h1></h1><h1></h1><h1>Real Title</h1>")
+        result = parse_headings(html)
+        self.assertEqual(result["h1_count"], 3)
+        self.assertEqual(result["h1_empty_count"], 2)
+        self.assertEqual(result["h1_with_text_count"], 1)
+        self.assertIn("empty/hidden", result["evidence"])
+
     def test_parse_canonical_present(self):
         html = self._page(head='<link rel="canonical" href="https://example.com/page/">')
         result = parse_canonical(html, "https://example.com/page/")
@@ -298,6 +306,26 @@ class TestHTMLParsing(unittest.TestCase):
         html = "<html><head></head><body></body></html>"
         result = detect_language(html)
         self.assertEqual(result["report_language"], "en")
+
+    def test_detect_language_cn_mapped_to_zh(self):
+        # Common mistake on Chinese sites: lang="cn" instead of lang="zh-CN"
+        html = '<html lang="cn"><head></head><body></body></html>'
+        result = detect_language(html)
+        self.assertEqual(result["lang_code"], "zh")
+        self.assertEqual(result["report_language"], "zh")
+
+    def test_detect_language_zh_underscore_locale(self):
+        # og:locale often uses underscore: zh_CN
+        html = '<html><head><meta property="og:locale" content="zh_CN"></head><body></body></html>'
+        result = detect_language(html)
+        self.assertEqual(result["lang_code"], "zh")
+        self.assertEqual(result["report_language"], "zh")
+
+    def test_detect_language_tw_mapped_to_zh(self):
+        html = '<html lang="tw"><head></head><body></body></html>'
+        result = detect_language(html)
+        self.assertEqual(result["lang_code"], "zh")
+        self.assertEqual(result["report_language"], "zh")
 
     def test_parse_breadcrumbs_schema_detected(self):
         schema_data = json.dumps({
