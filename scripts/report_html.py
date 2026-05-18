@@ -704,6 +704,230 @@ _SEV_ICON = {"high": "⛔", "medium": "⚠️", "low": "ℹ️"}
 # Helpers
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Chinese translations  (keyed by Finding.check for impact/fix,
+#                        by Finding.module for module names,
+#                        by Finding.check for display names)
+# ---------------------------------------------------------------------------
+
+_ZH_MODULE: Dict[str, str] = {
+    "Technical SEO":  "技术 SEO",
+    "Content":        "内容质量",
+    "Internal Links": "内链结构",
+    "Core Web Vitals":"核心网页指标",
+    "Mobile":         "移动端体验",
+}
+
+_ZH_CHECK: Dict[str, str] = {
+    # Technical SEO
+    "https":                  "HTTPS 强制跳转",
+    "www_redirect":           "www 一致性",
+    "robots_txt":             "robots.txt",
+    "404_page":               "404 页面",
+    "canonical":              "Canonical 标签",
+    "structured_data":        "结构化数据",
+    "url_depth":              "URL 层级",
+    "url_parameters":         "URL 参数处理",
+    "sitemap_exists":         "sitemap.xml 存在",
+    "sitemap_valid_xml":      "sitemap.xml 格式",
+    "sitemap_has_lastmod":    "sitemap lastmod 日期",
+    "sitemap_freshness":      "sitemap 更新时效",
+    # Content
+    "title_present":          "Title 标签",
+    "title_length":           "Title 显示长度",
+    "meta_description":       "Meta 描述",
+    "meta_description_length":"Meta 描述长度",
+    "h1_present":             "H1 标签",
+    "h1_unique":              "H1 唯一性",
+    "heading_hierarchy":      "标题层级结构",
+    "image_alt_attributes":   "图片 alt 属性",
+    "image_formats":          "图片格式",
+    "eeat_signals":           "E-E-A-T 信号",
+    "og_tags":                "Open Graph 标签",
+    # Internal Links
+    "internal_link_count":    "内链数量",
+    "anchor_text_quality":    "锚文本质量",
+    "breadcrumbs":            "面包屑导航",
+    "breadcrumb_schema":      "面包屑 Schema 标记",
+    # Core Web Vitals
+    "psi_mobile":             "PSI 移动端（数据待补充）",
+    "psi_desktop":            "PSI 桌面端（数据待补充）",
+    "psi_score_mobile":       "PSI 综合评分（移动端）",
+    "psi_score_desktop":      "PSI 综合评分（桌面端）",
+    "lcp_mobile":             "LCP 最大内容渲染（移动端）",
+    "lcp_desktop":            "LCP 最大内容渲染（桌面端）",
+    "inp_mobile":             "INP 交互响应（移动端）",
+    "inp_desktop":            "INP 交互响应（桌面端）",
+    "cls_mobile":             "CLS 视觉稳定性（移动端）",
+    "cls_desktop":            "CLS 视觉稳定性（桌面端）",
+    "fcp_mobile":             "FCP 首次内容渲染（移动端）",
+    "fcp_desktop":            "FCP 首次内容渲染（桌面端）",
+    "ttfb_mobile":            "TTFB 服务器响应（移动端）",
+    "ttfb_desktop":           "TTFB 服务器响应（桌面端）",
+}
+
+_ZH_IMPACT: Dict[str, str] = {
+    "https":
+        "HTTPS 是 Google 已确认的排名信号；非 HTTPS 页面排名可能更低，且浏览器会显示安全警告",
+    "www_redirect":
+        "www 与非 www 不一致会导致 PageRank 分散在两个版本之间",
+    "robots_txt":
+        "没有 robots.txt 时爬虫使用默认行为，且无法通过 Sitemap 指令加速发现页面",
+    "robots_txt_blocks":
+        "重要页面无法被爬取和收录，直接影响流量",
+    "404_page":
+        "软 404 会浪费爬取配额，并让搜索引擎对网站结构产生混淆",
+    "url_depth":
+        "URL 层级过深可能降低爬取效率；不是确认的排名惩罚项",
+    "url_parameters":
+        "带参数的 URL 若无 canonical 或 noindex 策略，可能产生重复内容问题",
+    "canonical":
+        "没有 canonical 标签，Google 可能索引重复或近似内容的多个版本",
+    "structured_data":
+        "缺少结构化数据会降低在 Google SERP 中获得富媒体摘要（Rich Results）的机会",
+    "sitemap_exists":
+        "没有 sitemap，搜索引擎只能依赖链接爬取，难以发现所有页面",
+    "sitemap_valid_xml":
+        "XML 格式错误的 sitemap 无法被搜索引擎处理",
+    "sitemap_has_lastmod":
+        "没有 lastmod 日期，Google 只能凭爬取记录判断页面新鲜度",
+    "sitemap_freshness":
+        "lastmod 日期过旧可能向 Google 暗示内容长期未更新",
+    "title_present":
+        "Title 标签是最重要的页面信号之一，也是 SERP 展示的主要标题",
+    "title_length":
+        "Title 过长会在 SERP 中被截断（显示建议：50–60 字符）",
+    "meta_description":
+        "缺少 Meta 描述时 Google 会自动截取正文生成摘要，可能降低点击率",
+    "meta_description_length":
+        "Meta 描述过长会在 SERP 中被截断（显示建议：150–160 字符）",
+    "h1_present":
+        "H1 是主要的页面主题信号，缺失会削弱 Google 对页面内容的理解",
+    "h1_unique":
+        "多个 H1 是需要审查的结构性信号；不是确认的排名惩罚项",
+    "heading_hierarchy":
+        "标题层级跳跃会降低内容结构的清晰度，影响爬虫和屏幕阅读器的理解",
+    "image_alt_attributes":
+        f"缺少 alt 属性的图片无法出现在图片搜索结果中，同时影响无障碍访问",
+    "image_formats":
+        "使用 JPEG/PNG 等传统格式会增加页面体积，拖慢 LCP 指标",
+    "eeat_signals":
+        "E-E-A-T 信号薄弱可能影响信任度评估，对 YMYL 类内容（医疗、金融）影响尤为显著",
+    "internal_link_count":
+        "内链过少会限制 PageRank 在站内的分配与流通",
+    "anchor_text_quality":
+        "\"点击这里\"等无意义锚文本无法向爬虫传递关键词上下文",
+    "breadcrumbs":
+        "面包屑导航有助于 Google 理解网站结构，并可在 SERP 中展示面包屑路径",
+    "breadcrumb_schema":
+        "已有 HTML 面包屑，但缺少 BreadcrumbList Schema 标记，无法在 SERP 展示富媒体面包屑",
+    "psi_mobile":
+        "缺少 PageSpeed 数据，无法评估 Core Web Vitals 指标",
+    "psi_desktop":
+        "缺少 PageSpeed 数据，无法评估 Core Web Vitals 指标",
+    "psi_score_mobile":
+        "PSI 评分低与更高的跳出率正相关，影响用户体验和页面体验信号",
+    "psi_score_desktop":
+        "桌面端 PSI 评分低会影响桌面用户体验",
+    "lcp_mobile":
+        "LCP 是 Google 已确认的页面体验排名信号，移动端尤为重要",
+    "lcp_desktop":
+        "LCP 是 Google 已确认的页面体验排名信号",
+    "inp_mobile":
+        "INP 是 Google 已确认的页面体验排名信号（2024 年取代 FID）",
+    "inp_desktop":
+        "INP 衡量页面对用户操作的响应速度",
+    "cls_mobile":
+        "CLS 高意味着页面内容在加载时会发生偏移，影响用户体验",
+    "cls_desktop":
+        "高 CLS 会导致用户误点错误元素",
+}
+
+_ZH_FIX: Dict[str, str] = {
+    "https":
+        "配置服务器对所有 HTTP 请求进行 301 重定向至 HTTPS；申请并配置有效 TLS 证书",
+    "www_redirect":
+        "选定一个规范版本（www 或非 www），将另一个版本 301 重定向至规范版本",
+    "robots_txt":
+        "创建 /robots.txt 文件并在其中声明 Sitemap 地址",
+    "404_page":
+        "配置服务器对不存在的 URL 返回真实 HTTP 404 状态码",
+    "url_depth":
+        "考虑将重要内容页面的 URL 结构适当扁平化",
+    "url_parameters":
+        "为参数 URL 添加 canonical 标签或在 Google Search Console 配置参数处理",
+    "canonical":
+        "为可索引页面添加 <link rel='canonical'>；分页、hreflang、参数页需按场景判断",
+    "structured_data":
+        "添加 Organization、BreadcrumbList 等 Schema.org JSON-LD 标记；博客文章添加 Article Schema",
+    "sitemap_exists":
+        "创建 XML sitemap 并通过 Google Search Console 提交",
+    "sitemap_valid_xml":
+        "校验 sitemap XML 语法并重新生成",
+    "sitemap_has_lastmod":
+        "为 sitemap 条目添加 <lastmod> 日期，帮助 Google 优先重新抓取已更新页面",
+    "sitemap_freshness":
+        "页面修改时更新 <lastmod>；建议自动化生成 sitemap",
+    "title_present":
+        "为每个页面添加唯一且描述性强的 <title> 标签",
+    "title_length":
+        "将 Title 裁剪至约 55 字符以降低被截断的风险",
+    "meta_description":
+        "为每个页面添加独特的 Meta 描述（150–160 字符），概括页面价值",
+    "meta_description_length":
+        "将 Meta 描述裁剪至约 155 字符",
+    "h1_present":
+        "每个页面添加一个描述性 H1 标签",
+    "h1_unique":
+        "检查多个 H1 是否符合 HTML5 文档结构意图，通常每页一个主要 H1",
+    "heading_hierarchy":
+        "使用连续的标题层级（H1→H2→H3），不跳级",
+    "image_alt_attributes":
+        "为所有信息性图片添加描述性 alt 文本；纯装饰性图片使用 alt=\"\"",
+    "image_formats":
+        "将图片转换为 WebP 或 AVIF 格式；使用 <picture> 元素兼容旧浏览器",
+    "eeat_signals":
+        "补充缺失信号：作者署名、发布日期、About/Contact/Privacy 页面",
+    "internal_link_count":
+        "使用描述性锚文本链接到相关页面，增加内链密度",
+    "anchor_text_quality":
+        "将\"点击这里\"\"了解更多\"等无意义锚文本替换为关键词相关的描述性文本",
+    "breadcrumbs":
+        "添加面包屑导航，并配套 BreadcrumbList JSON-LD Schema 标记",
+    "breadcrumb_schema":
+        "为现有面包屑添加 JSON-LD BreadcrumbList 标记，以在 Google 搜索结果中展示面包屑路径",
+    "psi_mobile":
+        "提供 --psi-key 参数或设置 PAGESPEED_API_KEY 环境变量以提高 API 配额",
+    "psi_desktop":
+        "提供 --psi-key 参数或设置 PAGESPEED_API_KEY 环境变量以提高 API 配额",
+    "psi_score_mobile":
+        "查看 PSI 优化机会列表，优先解决具体优化建议",
+    "psi_score_desktop":
+        "查看 PSI 桌面端优化机会列表",
+    "lcp_mobile":
+        "优化最大内容块：预加载首屏图片、使用 WebP/AVIF、减少服务器响应时间",
+    "lcp_desktop":
+        "优化最大内容块：预加载、现代图片格式、CDN",
+    "inp_mobile":
+        "减少 JavaScript 执行时间，拆分长任务，减少主线程阻塞",
+    "inp_desktop":
+        "减少 JavaScript 执行时间，优化事件处理",
+    "cls_mobile":
+        "为所有图片和视频嵌入设置明确的 width/height；避免在已有内容上方插入广告或横幅",
+    "cls_desktop":
+        "为图片和嵌入元素设置明确尺寸；避免动态插入内容导致布局偏移",
+}
+
+
+def _zh_translate(f: Finding) -> tuple:
+    """Return (zh_module, zh_check, zh_impact, zh_fix) for a finding."""
+    module = _ZH_MODULE.get(f.module, f.module)
+    check  = _ZH_CHECK.get(f.check, f.check.replace("_", " ").title())
+    impact = _ZH_IMPACT.get(f.check, f.impact)
+    fix    = _ZH_FIX.get(f.check, f.fix) if f.fix else f.fix
+    return module, check, impact, fix
+
+
 def _esc(text: str) -> str:
     return (
         str(text)
@@ -741,17 +965,18 @@ def _conf_bdg(conf: str, lang: str) -> str:
     return f'<span class="badge c-{conf}">{labels.get(conf, conf.upper())}</span>'
 
 
-def _score_card(module: str, score: int) -> str:
-    label = _status_label(score)
-    color = _score_color(score)
-    num   = str(score) if score >= 0 else "—"
+def _score_card(module: str, score: int, lang: str = "en") -> str:
+    label       = _status_label(score)
+    color       = _score_color(score)
+    num         = str(score) if score >= 0 else "—"
+    module_disp = _ZH_MODULE.get(module, module) if lang == "zh" else module
     return (
         f'<div class="score-card">'
         f'<div class="score-ring" style="--score:{score};--clr:{color}">'
         f'<div class="score-donut">'
         f'<span class="score-number {label}">{num}</span>'
         f'</div></div>'
-        f'<div class="score-module">{_esc(module)}</div>'
+        f'<div class="score-module">{_esc(module_disp)}</div>'
         f'</div>'
     )
 
@@ -762,12 +987,21 @@ def _finding_card(f: Finding, idx: int, lang: str) -> str:
         "zh": {"ev": "证据", "impact": "影响", "fix": "修复建议"},
     }.get(lang, {"ev": "Evidence", "impact": "Impact", "fix": "Recommended Fix"})
 
+    # Apply Chinese translations when rendering in zh mode
+    if lang == "zh":
+        module_disp, check_disp, impact_disp, fix_disp = _zh_translate(f)
+    else:
+        module_disp = f.module
+        check_disp  = f.check.replace("_", " ").title()
+        impact_disp = f.impact
+        fix_disp    = f.fix
+
     fix_html = ""
-    if f.fix:
+    if fix_disp:
         fix_html = (
             f'<div class="fc-fix-block">'
             f'<div class="fc-fix-label">{L["fix"]}</div>'
-            f'<div class="fc-fix-value">{_esc(f.fix)}</div>'
+            f'<div class="fc-fix-value">{_esc(fix_disp)}</div>'
             f'</div>'
         )
 
@@ -779,8 +1013,8 @@ def _finding_card(f: Finding, idx: int, lang: str) -> str:
         f'<div class="fc-stripe"></div>'
         f'<div class="fc-head-content">'
         f'<div>'
-        f'<div class="fc-index-module">{idx}. {_esc(f.module)}</div>'
-        f'<div class="fc-check-name">{_esc(f.check.replace("_", " ").title())}</div>'
+        f'<div class="fc-index-module">{idx}. {_esc(module_disp)}</div>'
+        f'<div class="fc-check-name">{_esc(check_disp)}</div>'
         f'</div>'
         f'<div class="fc-badges">{_status_bdg(f.status, lang)}{_conf_bdg(f.confidence, lang)}</div>'
         f'</div>'
@@ -794,7 +1028,7 @@ def _finding_card(f: Finding, idx: int, lang: str) -> str:
         f'</div>'
         f'<div class="fc-field">'
         f'<div class="fc-field-label">{L["impact"]}</div>'
-        f'<div class="fc-field-value">{_esc(f.impact)}</div>'
+        f'<div class="fc-field-value">{_esc(impact_disp)}</div>'
         f'</div>'
         f'</div>'
 
@@ -929,7 +1163,7 @@ def generate_html_report(audit_data: Dict, language: str = "en") -> str:
             f'</div>'
         )
 
-    score_cards = "".join(_score_card(mod, s) for mod, s in scores.items())
+    score_cards = "".join(_score_card(mod, s, lang) for mod, s in scores.items())
 
     # Priority findings grouped by severity
     groups: Dict[str, List] = {"high": [], "medium": [], "low": []}
@@ -961,14 +1195,21 @@ def generate_html_report(audit_data: Dict, language: str = "en") -> str:
     # Data Needed section
     dn_section_html = ""
     if dn:
-        dn_cards = "".join(
-            f'<div class="dn-card">'
-            f'<div class="dn-card-title">{i+1}. [{_esc(f.module)}] {_esc(f.check)}</div>'
-            f'<div class="dn-card-ev">{_esc(f.evidence)}</div>'
-            f'<div class="dn-card-fix">{_esc(dn_how)} {_esc(f.fix or "")}</div>'
-            f'</div>'
-            for i, f in enumerate(dn)
-        )
+        def _dn_card(i: int, f: Finding) -> str:
+            if lang == "zh":
+                mod_d, chk_d, _, fix_d = _zh_translate(f)
+            else:
+                mod_d  = f.module
+                chk_d  = f.check
+                fix_d  = f.fix or ""
+            return (
+                f'<div class="dn-card">'
+                f'<div class="dn-card-title">{i+1}. [{_esc(mod_d)}] {_esc(chk_d)}</div>'
+                f'<div class="dn-card-ev">{_esc(f.evidence)}</div>'
+                f'<div class="dn-card-fix">{_esc(dn_how)} {_esc(fix_d)}</div>'
+                f'</div>'
+            )
+        dn_cards = "".join(_dn_card(i, f) for i, f in enumerate(dn))
         dn_section_html = (
             f'<div class="section">'
             f'<div class="section-head">'
