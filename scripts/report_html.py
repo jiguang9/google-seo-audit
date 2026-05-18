@@ -947,6 +947,154 @@ def _score_color(score: int) -> str:
     }.get(label, "#C8C2BA")
 
 
+import re as _re
+
+# Static evidence strings that have no dynamic parts
+_STATIC_EV_ZH: Dict[str, str] = {
+    "No JSON-LD structured data found":
+        "未检测到 JSON-LD 结构化数据",
+    "No breadcrumb navigation detected":
+        "未检测到面包屑导航",
+    "No H1 tag found":
+        "未找到 H1 标签",
+    "Meta description absent":
+        "Meta 描述标签缺失",
+    "Meta description: absent":
+        "Meta 描述标签缺失",
+    "<title> tag absent":
+        "页面缺少 <title> 标签",
+    "No canonical tag found on this page":
+        "页面未设置 canonical 标签",
+    "robots.txt not found":
+        "未找到 robots.txt 文件",
+    "No <lastmod> dates found in sitemap entries":
+        "sitemap 条目中未设置 <lastmod> 日期",
+    "PSI API rate limit reached. Provide --psi-key to increase quota, or paste PSI results manually.":
+        "PSI API 已达限额，请提供 --psi-key 参数或手动粘贴 PSI 报告结果",
+    "No hreflang tags (single-language site — expected)":
+        "未设置 hreflang 标签（单语言站点，符合预期）",
+}
+
+# Pattern-based evidence translations (applied in order)
+_PATTERN_EV_ZH = [
+    # HTTPS
+    (_re.compile(r"GET (https?://\S+) → (https?://\S+) \(status (\d+)\)"),
+     lambda m: f"GET {m.group(1)} → {m.group(2)}（状态码 {m.group(3)}）"),
+    (_re.compile(r"TLS certificate valid for (.+)"),
+     lambda m: f"TLS 证书有效（{m.group(1)}）"),
+    (_re.compile(r"TLS certificate error: (.+)"),
+     lambda m: f"TLS 证书错误：{m.group(1)}"),
+    # www redirect
+    (_re.compile(r"https?://(\S+) → (https?://\S+)"),
+     lambda m: f"{m.group(0)}"),   # keep as-is (URLs are self-explanatory)
+    # robots.txt
+    (_re.compile(r"robots\.txt found at (.+?); (\d+) Disallow rules?, (\d+) Sitemap refs?"),
+     lambda m: f"robots.txt 位于 {m.group(1)}；{m.group(2)} 条 Disallow 规则，{m.group(3)} 条 Sitemap 声明"),
+    (_re.compile(r"robots\.txt present with (\d+) Disallow rules?"),
+     lambda m: f"robots.txt 已存在；{m.group(1)} 条 Disallow 规则"),
+    (_re.compile(r"Disallow rules? may block important content: (.+)"),
+     lambda m: f"Disallow 规则可能屏蔽重要内容：{m.group(1)}"),
+    # 404
+    (_re.compile(r"404 page returns HTTP 404; custom page: (yes|no)"),
+     lambda m: f"404 页面返回 HTTP 404；自定义页面：{'是' if m.group(1)=='yes' else '否'}"),
+    (_re.compile(r"Non-existent URL returned HTTP (\d+) instead of 404"),
+     lambda m: f"不存在的 URL 返回了 HTTP {m.group(1)}，而非 404"),
+    # Canonical
+    (_re.compile(r"^canonical: (.+)$"),
+     lambda m: f"canonical 标签：{m.group(1)}"),
+    # Structured data
+    (_re.compile(r"(\d+) JSON-LD block\(s\); types: (.+)"),
+     lambda m: f"{m.group(1)} 个 JSON-LD 块，类型：{m.group(2)}"),
+    # Sitemap
+    (_re.compile(r"Sitemap found at (.+?) \(HTTP 200\)"),
+     lambda m: f"Sitemap 已找到：{m.group(1)}"),
+    (_re.compile(r"Standard sitemap with (\d+) URL entries"),
+     lambda m: f"标准 sitemap，共 {m.group(1)} 条 URL"),
+    (_re.compile(r"Sitemap index with (\d+) child sitemap\(s\)"),
+     lambda m: f"Sitemap 索引文件，含 {m.group(1)} 个子 sitemap"),
+    (_re.compile(r"Most recent lastmod: (.+?) \((\d+) days ago\)"),
+     lambda m: f"最近修改日期：{m.group(1)}（{m.group(2)} 天前）"),
+    # URL
+    (_re.compile(r"Sample URL depth: (\d+) level\(s\)"),
+     lambda m: f"URL 层级深度：{m.group(1)} 层"),
+    (_re.compile(r"Query string present: \?(.+)"),
+     lambda m: f"存在查询字符串参数：?{m.group(1)}"),
+    # Title
+    (_re.compile(r'Title: (.+?) \((\d+) chars?\)'),
+     lambda m: f"标题：{m.group(1)}（{m.group(2)} 字符）"),
+    # Meta description
+    (_re.compile(r"Meta description: (\d+) chars?"),
+     lambda m: f"Meta 描述：{m.group(1)} 字符"),
+    # H1
+    (_re.compile(r"(\d+) H1 tags? \((\d+) empty/hidden\); heading levels present: (.+?); level skips: (.+)"),
+     lambda m: f"检测到 {m.group(1)} 个 H1 标签（{m.group(2)} 个空/隐藏）；标题层级：{m.group(3)}；跳级：{m.group(4)}"),
+    (_re.compile(r"(\d+) H1 tags?; heading levels present: (.+?); level skips: (.+)"),
+     lambda m: f"检测到 {m.group(1)} 个 H1 标签；标题层级：{m.group(2)}；跳级：{m.group(3)}"),
+    (_re.compile(r"(\d+) H1 tags? found: (.+)"),
+     lambda m: f"检测到 {m.group(1)} 个 H1 标签：{m.group(2)}"),
+    # Heading hierarchy
+    (_re.compile(r"Heading level skips detected: (.+)"),
+     lambda m: f"检测到标题跳级：{m.group(1)}"),
+    # Images
+    (_re.compile(r"(\d+) images?: (\d+) missing alt, (\d+) empty alt, (\d+)/(\d+) modern format \(WebP/AVIF\)"),
+     lambda m: f"{m.group(1)} 张图片：{m.group(2)} 张缺少 alt，{m.group(3)} 张 alt 为空，{m.group(4)}/{m.group(5)} 张使用现代格式（WebP/AVIF）"),
+    # Internal links
+    (_re.compile(r"(\d+) internal links?, (\d+) external links?; (\d+) weak anchor text instances?"),
+     lambda m: f"{m.group(1)} 条内链，{m.group(2)} 条外链；{m.group(3)} 处无意义锚文本"),
+    (_re.compile(r"(\d+) weak anchor text instances? found"),
+     lambda m: f"检测到 {m.group(1)} 处无意义锚文本"),
+    # Breadcrumbs
+    (_re.compile(r"Breadcrumb: HTML=(yes|no), BreadcrumbList schema=(yes|no)"),
+     lambda m: f"面包屑 HTML：{'有' if m.group(1)=='yes' else '无'}；BreadcrumbList Schema：{'有' if m.group(2)=='yes' else '无'}"),
+    # E-E-A-T
+    (_re.compile(r"E-E-A-T signals detected: (.+?); absent: (.+)"),
+     lambda m: f"E-E-A-T 信号已检测到：{m.group(1).replace('_',' ')}；缺失：{m.group(2).replace('_',' ')}"),
+    # PSI scores
+    (_re.compile(r"PSI (mobile|desktop): score=(\S+), LCP=(\S+), INP=(\S+), CLS=(\S+)"),
+     lambda m: f"PSI {'移动端' if m.group(1)=='mobile' else '桌面端'}：综合 {m.group(2)} 分，LCP={m.group(3)}，INP={m.group(4)}，CLS={m.group(5)}"),
+    (_re.compile(r"PSI (mobile|desktop) performance score: (\d+)/100"),
+     lambda m: f"PSI {'移动端' if m.group(1)=='mobile' else '桌面端'} 综合评分：{m.group(2)}/100"),
+    # CWV metrics
+    (_re.compile(r"(LCP|INP|CLS|FCP|TTFB) \((mobile|desktop)\): (.+?) → (good|needs_improvement|poor)"),
+     lambda m: f"{m.group(1)}（{'移动端' if m.group(2)=='mobile' else '桌面端'}）：{m.group(3)} → "
+               f"{'良好' if m.group(4)=='good' else '需要改善' if m.group(4)=='needs_improvement' else '较差'}"),
+    # CrUX field data
+    (_re.compile(r"CrUX field data available: overall = (\S+)"),
+     lambda m: f"CrUX 真实用户数据可用：整体评级 {m.group(1)}"),
+]
+
+
+def _zh_evidence(evidence: str) -> str:
+    """Translate an evidence string to Chinese, keeping URLs and numbers intact.
+    Applies ALL matching patterns so compound evidence (multiple facts joined
+    by '; ') gets fully translated."""
+    # Static full-match wins immediately
+    if evidence in _STATIC_EV_ZH:
+        return _STATIC_EV_ZH[evidence]
+
+    # Apply every pattern in sequence (all can match different substrings)
+    s = evidence
+    for pattern, repl in _PATTERN_EV_ZH:
+        s = pattern.sub(repl, s)
+
+    if s != evidence:
+        return s
+
+    # Segment-by-segment fallback for compound evidence joined by "; "
+    if "; " in evidence:
+        parts = evidence.split("; ")
+        translated_parts = []
+        for part in parts:
+            t = _STATIC_EV_ZH.get(part, part)
+            if t == part:
+                for pattern, repl in _PATTERN_EV_ZH:
+                    t = pattern.sub(repl, t)
+            translated_parts.append(t)
+        return "；".join(translated_parts)
+
+    return evidence  # keep original if nothing matched
+
+
 def _status_bdg(status: str, lang: str) -> str:
     if lang == "zh":
         labels = {"pass": "通过", "warning": "警告", "fail": "失败",
@@ -1024,7 +1172,7 @@ def _finding_card(f: Finding, idx: int, lang: str) -> str:
         f'<div class="fc-body">'
         f'<div class="fc-field">'
         f'<div class="fc-field-label">{L["ev"]}</div>'
-        f'<div class="fc-field-value evidence">{_esc(f.evidence)}</div>'
+        f'<div class="fc-field-value evidence">{_esc(_zh_evidence(f.evidence) if lang == "zh" else f.evidence)}</div>'
         f'</div>'
         f'<div class="fc-field">'
         f'<div class="fc-field-label">{L["impact"]}</div>'
@@ -1044,7 +1192,7 @@ def _detail_block(module: str, findings: List[Finding], lang: str = "en") -> str
         f'<div class="dt-row">'
         f'<div class="dt-s">{STATUS_EMOJI.get(f.status, "")}</div>'
         f'<div class="dt-c">{_esc(_ZH_CHECK.get(f.check, f.check) if lang == "zh" else f.check)}</div>'
-        f'<div class="dt-e">{_esc(f.evidence)}</div>'
+        f'<div class="dt-e">{_esc(_zh_evidence(f.evidence) if lang == "zh" else f.evidence)}</div>'
         f'</div>'
         for f in findings
     )
@@ -1206,7 +1354,7 @@ def generate_html_report(audit_data: Dict, language: str = "en") -> str:
             return (
                 f'<div class="dn-card">'
                 f'<div class="dn-card-title">{i+1}. [{_esc(mod_d)}] {_esc(chk_d)}</div>'
-                f'<div class="dn-card-ev">{_esc(f.evidence)}</div>'
+                f'<div class="dn-card-ev">{_esc(_zh_evidence(f.evidence) if lang == "zh" else f.evidence)}</div>'
                 f'<div class="dn-card-fix">{_esc(dn_how)} {_esc(fix_d)}</div>'
                 f'</div>'
             )
