@@ -93,7 +93,7 @@ def run_audit(
     gsc_file: Optional[str] = None,
     output_json: bool = False,
     github_owner: Optional[str] = "jiguang9",
-    output_format: str = "md",
+    output_format: str = "html",
 ) -> str:
     """
     Full Google SEO audit pipeline.
@@ -261,9 +261,9 @@ Examples:
                         help="Output raw audit data as JSON instead of markdown")
     parser.add_argument("--github-owner", dest="github_owner", default="jiguang9",
                         help="GitHub username for version check (default: jiguang9). Pass empty string to disable.")
-    parser.add_argument("--format", dest="output_format", default="md",
+    parser.add_argument("--format", dest="output_format", default="html",
                         choices=["md", "html"],
-                        help="Output format: md (default) or html")
+                        help="Output format: html (default) or md")
     return parser.parse_args(argv)
 
 

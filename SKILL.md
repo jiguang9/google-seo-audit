@@ -91,11 +91,11 @@ each step manually using the available tools.
 ### Step 0 — Check bash availability and version
 
 ```bash
-# Markdown report (default) — version check runs automatically
-python scripts/audit_url.py {url} [--psi-key={key}] [--gsc={file}] --output=report.md
+# HTML report (default) — styled, self-contained, version check automatic
+python scripts/audit_url.py {url} [--psi-key={key}] [--gsc={file}] --output=report.html
 
-# HTML report (styled, self-contained)
-python scripts/audit_url.py {url} [--psi-key={key}] [--gsc={file}] --format=html --output=report.html
+# Markdown report (plain text, for piping or further processing)
+python scripts/audit_url.py {url} --format=md --output=report.md
 
 # Disable automatic version check
 python scripts/audit_url.py {url} --github-owner=""
