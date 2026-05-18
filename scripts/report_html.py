@@ -1038,18 +1038,19 @@ def _finding_card(f: Finding, idx: int, lang: str) -> str:
     )
 
 
-def _detail_block(module: str, findings: List[Finding]) -> str:
+def _detail_block(module: str, findings: List[Finding], lang: str = "en") -> str:
+    module_disp = _ZH_MODULE.get(module, module) if lang == "zh" else module
     rows = "".join(
         f'<div class="dt-row">'
         f'<div class="dt-s">{STATUS_EMOJI.get(f.status, "")}</div>'
-        f'<div class="dt-c">{_esc(f.check)}</div>'
+        f'<div class="dt-c">{_esc(_ZH_CHECK.get(f.check, f.check) if lang == "zh" else f.check)}</div>'
         f'<div class="dt-e">{_esc(f.evidence)}</div>'
         f'</div>'
         for f in findings
     )
     return (
         f'<details>'
-        f'<summary>{_esc(module)}{_CHEV}</summary>'
+        f'<summary>{_esc(module_disp)}{_CHEV}</summary>'
         f'{rows}'
         f'</details>'
     )
@@ -1225,7 +1226,7 @@ def generate_html_report(audit_data: Dict, language: str = "en") -> str:
         )
 
     detail_blocks = "".join(
-        _detail_block(mod, findings)
+        _detail_block(mod, findings, lang)
         for mod, findings in all_module_findings.items()
     )
 
