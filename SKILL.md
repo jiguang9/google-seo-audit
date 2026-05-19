@@ -7,7 +7,7 @@ description: >
   Generates a prioritised diagnostic report with evidence-backed findings,
   severity ratings, confidence levels, and actionable fix recommendations.
   Report language auto-detected from the target site.
-version: 1.0.0
+version: 1.1.0
 author: google-seo-audit
 license: MIT
 triggers:
