@@ -1,7 +1,7 @@
 """
 Unit tests for CSV parsers, HTML parsers, and sitemap parser.
-Run: python -m pytest tests/test_parsers.py -v
-     or: cd tests && python test_parsers.py
+Run: python3 -m pytest tests/test_parsers.py -v
+     or: cd tests && python3 test_parsers.py
 """
 
 import csv
