@@ -18,10 +18,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 from fetch_page import check_robots_txt
 from parse_gsc import detect_gsc_export_type, parse_gsc_file
 from parse_html import (
+    check_ai_seo_readiness,
     detect_language,
+    detect_site_type,
     parse_breadcrumbs,
     parse_canonical,
     parse_headings,
+    parse_hreflang,
     parse_images,
     parse_links,
     parse_schema,
@@ -29,6 +32,11 @@ from parse_html import (
     parse_viewport,
 )
 from parse_sitemap import parse_sitemap_xml
+from score_report import (
+    Finding,
+    _score_from_findings,
+    build_ai_seo_findings,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -457,6 +465,213 @@ class TestRobotsTxtParsing(unittest.TestCase):
         robots = "User-agent: *\nDisallow: /admin/\n"
         result = self._run_check(robots)
         self.assertFalse(result["blocks_critical_paths"])
+
+
+# ---------------------------------------------------------------------------
+# New feature tests (CWV N/A score, schema limitation, hreflang validation,
+# site type detection, AI SEO readiness, canonical-hreflang mismatch)
+# ---------------------------------------------------------------------------
+
+class TestCWVScoring(unittest.TestCase):
+    """_score_from_findings returns None when all findings are data_needed."""
+
+    def _dn(self, check):
+        return Finding(
+            module="Core Web Vitals", check=check, status="data_needed",
+            severity="high", confidence="low", evidence="PSI rate limited",
+            impact="", fix="use --psi-key",
+        )
+
+    def test_all_data_needed_returns_none(self):
+        findings = [self._dn("psi_mobile"), self._dn("psi_desktop")]
+        self.assertIsNone(_score_from_findings(findings))
+
+    def test_mixed_findings_scores_normally(self):
+        findings = [
+            self._dn("psi_mobile"),
+            Finding(module="Core Web Vitals", check="lcp_mobile", status="fail",
+                    severity="high", confidence="high", evidence="LCP 5s", impact="slow"),
+        ]
+        score = _score_from_findings(findings)
+        self.assertIsNotNone(score)
+        self.assertLess(score, 100)
+
+    def test_empty_findings_returns_100(self):
+        self.assertEqual(_score_from_findings([]), 100)
+
+
+class TestSchemaDetectionLimitation(unittest.TestCase):
+
+    def test_no_schema_evidence_includes_limitation(self):
+        html = "<html><head><title>Test</title></head><body>Hello</body></html>"
+        result = parse_schema(html)
+        self.assertFalse(result["present"])
+        self.assertIn("Static HTML scan", result["evidence"])
+        self.assertIn("detection_limitation", result)
+
+    def test_no_schema_confidence_is_medium_in_findings(self):
+        from score_report import build_technical_findings
+        audit = {
+            "https": {"original_uses_https": True, "http_redirects_to_https": True, "evidence": []},
+            "www_redirect": {"consistent": True, "evidence": []},
+            "robots": {"exists": True, "blocks_critical_paths": False, "disallow_rules": []},
+            "page_404": {"returns_proper_404": True, "has_custom_404_page": True},
+            "url_info": {"depth": 1, "is_static": True, "query_string": None},
+            "canonical": {"present": True, "href": "https://example.com/", "evidence": "canonical: https://example.com/"},
+            "schema": {"present": False, "evidence": "No JSON-LD found in static HTML. Static HTML scan only."},
+            "hreflang": {"present": False, "count": 0, "entries": [], "issues": []},
+        }
+        findings = build_technical_findings(audit)
+        schema_f = next((f for f in findings if f.check == "structured_data"), None)
+        self.assertIsNotNone(schema_f)
+        self.assertEqual(schema_f.confidence, "medium")
+        self.assertEqual(schema_f.status, "warning")
+
+
+class TestHreflangValidation(unittest.TestCase):
+
+    def test_missing_self_reference(self):
+        html = """<html><head>
+        <link rel="alternate" hreflang="en" href="https://example.com/">
+        <link rel="alternate" hreflang="zh" href="https://example.com/zh/">
+        <link rel="alternate" hreflang="x-default" href="https://example.com/">
+        </head><body></body></html>"""
+        result = parse_hreflang(html, "https://example.com/zh/page/")
+        self.assertIn("missing_self_reference", result["issues"])
+        self.assertFalse(result["self_referencing"])
+
+    def test_self_referencing_pass(self):
+        html = """<html><head>
+        <link rel="alternate" hreflang="en" href="https://example.com/">
+        <link rel="alternate" hreflang="x-default" href="https://example.com/">
+        </head><body></body></html>"""
+        result = parse_hreflang(html, "https://example.com/")
+        self.assertTrue(result["self_referencing"])
+        self.assertNotIn("missing_self_reference", result["issues"])
+
+    def test_missing_x_default(self):
+        html = """<html><head>
+        <link rel="alternate" hreflang="en" href="https://example.com/">
+        <link rel="alternate" hreflang="zh" href="https://example.com/zh/">
+        </head><body></body></html>"""
+        result = parse_hreflang(html, "https://example.com/")
+        self.assertIn("missing_x_default", result["issues"])
+        self.assertFalse(result["has_x_default"])
+
+    def test_invalid_lang_code_en_uk(self):
+        html = """<html><head>
+        <link rel="alternate" hreflang="en-UK" href="https://example.com/en/">
+        <link rel="alternate" hreflang="x-default" href="https://example.com/">
+        </head><body></body></html>"""
+        result = parse_hreflang(html)
+        self.assertIn("invalid_lang_codes", result["issues"])
+        codes = [c["code"] for c in result["invalid_codes"]]
+        self.assertIn("en-UK", codes)
+
+    def test_relative_hrefs_detected(self):
+        html = """<html><head>
+        <link rel="alternate" hreflang="en" href="/en/">
+        <link rel="alternate" hreflang="x-default" href="/">
+        </head><body></body></html>"""
+        result = parse_hreflang(html)
+        self.assertIn("relative_hrefs", result["issues"])
+
+    def test_no_hreflang_no_issues(self):
+        html = "<html><head></head><body></body></html>"
+        result = parse_hreflang(html)
+        self.assertFalse(result["present"])
+        self.assertEqual(result["issues"], [])
+
+
+class TestSiteTypeDetection(unittest.TestCase):
+
+    def test_ecommerce_from_text(self):
+        html = "<html><body><button>Add to Cart</button><span>Buy Now</span></body></html>"
+        result = detect_site_type(html, "https://shop.example.com/product")
+        self.assertEqual(result["type"], "ecommerce")
+
+    def test_ecommerce_from_schema(self):
+        html = "<html><body></body></html>"
+        result = detect_site_type(html, "https://example.com/", schema_types=["Product", "Offer"])
+        self.assertEqual(result["type"], "ecommerce")
+
+    def test_blog_from_url(self):
+        html = "<html><body></body></html>"
+        result = detect_site_type(html, "https://example.com/blog/my-post")
+        self.assertEqual(result["type"], "blog")
+
+    def test_saas_from_pricing_text(self):
+        html = "<html><body><p>Free trial available. $29 per month per user.</p></body></html>"
+        result = detect_site_type(html, "https://app.example.com/pricing")
+        self.assertEqual(result["type"], "saas")
+
+    def test_general_fallback(self):
+        html = "<html><body><p>Hello world.</p></body></html>"
+        result = detect_site_type(html, "https://example.com/")
+        self.assertEqual(result["type"], "general")
+
+
+class TestAISEOReadiness(unittest.TestCase):
+
+    def test_faq_schema_detected(self):
+        html = """<html><head>
+        <script type="application/ld+json">{"@type": "FAQPage"}</script>
+        </head><body></body></html>"""
+        result = check_ai_seo_readiness(html, "https://example.com/")
+        self.assertTrue(result["has_faq_schema"])
+        self.assertIn("faq_or_howto_schema", result["present"])
+
+    def test_entity_schema_detected(self):
+        html = """<html><head>
+        <script type="application/ld+json">{"@type": "Organization", "name": "Acme"}</script>
+        </head><body></body></html>"""
+        result = check_ai_seo_readiness(html, "https://example.com/")
+        self.assertTrue(result["has_entity_schema"])
+        self.assertIn("entity_schema", result["present"])
+
+    def test_missing_signals_listed(self):
+        html = "<html><body><p>Hello world.</p></body></html>"
+        result = check_ai_seo_readiness(html, "https://example.com/")
+        self.assertIn("faq_or_howto_schema", result["missing"])
+        self.assertIn("entity_schema", result["missing"])
+
+    def test_llms_txt_url_generated(self):
+        result = check_ai_seo_readiness("<html><body></body></html>", "https://example.com/page")
+        self.assertEqual(result["llms_txt_url"], "https://example.com/llms.txt")
+
+
+class TestAISEOFindings(unittest.TestCase):
+
+    def test_missing_faq_and_entity_generate_warnings(self):
+        audit = {
+            "ai_seo": {
+                "has_faq_schema": False, "has_entity_schema": False,
+                "has_qa_content": False, "has_author": False,
+            },
+            "llms_txt": {"exists": False, "checked_url": "https://example.com/llms.txt"},
+        }
+        findings = build_ai_seo_findings(audit)
+        statuses = {f.check: f.status for f in findings}
+        self.assertEqual(statuses.get("faq_schema"), "warning")
+        self.assertEqual(statuses.get("entity_clarity"), "warning")
+        self.assertEqual(statuses.get("llms_txt"), "warning")
+
+    def test_present_signals_generate_passes(self):
+        audit = {
+            "ai_seo": {
+                "has_faq_schema": True, "has_entity_schema": True,
+                "has_qa_content": True, "has_author": True,
+            },
+            "llms_txt": {"exists": True, "checked_url": "https://example.com/llms.txt"},
+        }
+        findings = build_ai_seo_findings(audit)
+        statuses = {f.check: f.status for f in findings}
+        self.assertEqual(statuses.get("faq_schema"), "pass")
+        self.assertEqual(statuses.get("entity_clarity"), "pass")
+        self.assertEqual(statuses.get("llms_txt"), "pass")
+
+    def test_empty_ai_seo_returns_no_findings(self):
+        self.assertEqual(build_ai_seo_findings({}), [])
 
 
 # ---------------------------------------------------------------------------

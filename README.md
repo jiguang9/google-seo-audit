@@ -87,7 +87,7 @@ The check is non-blocking and silent on failure (network issues, no releases yet
 To disable the automatic check:
 
 ```bash
-python scripts/audit_url.py https://example.com --github-owner=""
+python3 scripts/audit_url.py https://example.com --github-owner=""
 ```
 
 To get notified of new releases proactively (without running an audit), watch this repo:
@@ -120,11 +120,11 @@ Audit https://example.com with PSI key AIzaSy... and GSC file ./gsc.csv
 ```bash
 pip install -r requirements.txt
 cd scripts
-python audit_url.py https://example.com                              # HTML by default
-python audit_url.py https://example.com --output=report.html         # save to file
-python audit_url.py https://example.com --psi-key=AIzaSy...
-python audit_url.py https://example.com --gsc=../examples/gsc-performance-queries.csv
-python audit_url.py https://example.com --format=md --output=report.md  # plain text
+python3 audit_url.py https://example.com                              # HTML by default
+python3 audit_url.py https://example.com --output=report.html         # save to file
+python3 audit_url.py https://example.com --psi-key=AIzaSy...
+python3 audit_url.py https://example.com --gsc=../examples/gsc-performance-queries.csv
+python3 audit_url.py https://example.com --format=md --output=report.md  # plain text
 ```
 
 ---

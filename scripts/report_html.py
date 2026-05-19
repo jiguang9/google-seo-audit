@@ -756,6 +756,7 @@ _ZH_CHECK: Dict[str, str] = {
     "hreflang_x_default":         "Hreflang x-default",
     "hreflang_lang_codes":        "Hreflang 语言代码",
     "hreflang_absolute_urls":     "Hreflang 绝对 URL",
+    "hreflang_canonical_mismatch": "Hreflang 与 Canonical 不一致",
     # AI SEO
     "faq_schema":             "FAQ / HowTo Schema",
     "entity_clarity":         "实体清晰度",
@@ -842,6 +843,8 @@ _ZH_IMPACT: Dict[str, str] = {
         "无效的语言代码会导致 Google 静默丢弃该 hreflang 对，多语言定向失效",
     "hreflang_absolute_urls":
         "Hreflang href 必须使用绝对 URL；相对 URL 会被 Google 忽略",
+    "hreflang_canonical_mismatch":
+        "Canonical URL 不在 hreflang 集合中时，Google 会静默丢弃整个 hreflang 集群，多语言定向完全失效",
     "faq_schema":
         "FAQ 和 HowTo schema 能提高页面被 AI 概述、精选摘要和语音搜索提取的概率",
     "entity_clarity":
@@ -933,6 +936,8 @@ _ZH_FIX: Dict[str, str] = {
         "使用 BCP-47 格式：ISO 639-1 语言码 + 可选 ISO 3166-1 地区码（如 en-GB 不是 en-UK；zh-CN 不是 zh-china）",
     "hreflang_absolute_urls":
         "将所有 hreflang href 值替换为包含协议和域名的完整绝对 URL",
+    "hreflang_canonical_mismatch":
+        "确保 canonical URL 出现在 hreflang 集合中的某一个 href 里，或将 canonical 和 hreflang 统一到相同的 URL 变体",
     "faq_schema":
         "为 Q&A 内容添加 FAQPage JSON-LD；为分步骤指南内容添加 HowTo schema",
     "entity_clarity":
@@ -1280,7 +1285,18 @@ def generate_html_report(audit_data: Dict, language: str = "en") -> str:
     lang = language
 
     # ── i18n ─────────────────────────────────────────────────────
+    site_type_info = audit_data.get("site_type", {})
+    site_type_raw  = site_type_info.get("type", "general")
+    site_type_conf = site_type_info.get("confidence", "low")
+
+    _ZH_SITE_TYPE = {
+        "ecommerce": "电商", "local": "本地商家", "blog": "内容/博客",
+        "saas": "SaaS/软件", "multilingual": "多语言", "general": "通用",
+    }
+
     if lang == "zh":
+        site_type_disp = _ZH_SITE_TYPE.get(site_type_raw, site_type_raw)
+        meta_site_type = ("站点类型", f"{site_type_disp}（{site_type_conf} 置信）")
         report_label   = "网站 SEO 诊断报告"
         report_sub     = "Google Search 优化诊断"
         url_label      = "诊断目标"
@@ -1313,6 +1329,8 @@ def generate_html_report(audit_data: Dict, language: str = "en") -> str:
         footer_html    = '由 <a href="https://github.com/jiguang9/google-seo-audit">google-seo-audit</a> 生成'
         no_issues_txt  = "未发现需要修复的问题。"
     else:
+        site_type_disp = site_type_raw
+        meta_site_type = ("Site Type", f"{site_type_disp} ({site_type_conf} confidence)")
         report_label   = "SEO Audit Report"
         report_sub     = "Google Search Optimisation Diagnostic"
         url_label      = "Target URL"
@@ -1442,6 +1460,7 @@ def generate_html_report(audit_data: Dict, language: str = "en") -> str:
         _meta_item(*meta_date)
         + _meta_item(*meta_lang)
         + _meta_item(*meta_engine)
+        + _meta_item(*meta_site_type)
     )
 
     # ── Final HTML assembly ───────────────────────────────────────

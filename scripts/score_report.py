@@ -273,6 +273,20 @@ def build_technical_findings(audit: Dict) -> List[Finding]:
                 impact="Hreflang configuration looks well-formed on this page",
             ))
 
+        # Canonical-hreflang consistency (single-page check only)
+        canonical = audit.get("canonical", {})
+        if canonical.get("present") and hreflang.get("entries"):
+            canon_href = (canonical.get("href") or "").rstrip("/")
+            hreflang_hrefs = {e["href"].rstrip("/") for e in hreflang.get("entries", [])}
+            if canon_href and hreflang_hrefs and canon_href not in hreflang_hrefs:
+                findings.append(Finding(
+                    module="Technical SEO", check="hreflang_canonical_mismatch",
+                    status="fail", severity="high", confidence="medium",
+                    evidence=f"Canonical URL ({canon_href}) not found in hreflang set",
+                    impact="When canonical is absent from the hreflang set, Google silently drops the entire cluster",
+                    fix="Ensure the canonical URL appears as one of the hreflang href values, or align canonical and hreflang to the same URL variant",
+                ))
+
     return findings
 
 
@@ -589,6 +603,9 @@ def generate_report(audit_data: Dict, language: str = "en") -> str:
     url = audit_data.get("url", "")
     date = audit_data.get("date", "")
     lang_detected = audit_data.get("detected_language", "en")
+    site_type_info = audit_data.get("site_type", {})
+    site_type_str = site_type_info.get("type", "general")
+    site_type_conf = site_type_info.get("confidence", "low")
 
     all_module_findings = assemble_findings(audit_data)
 
@@ -618,11 +635,11 @@ def generate_report(audit_data: Dict, language: str = "en") -> str:
     render_fn = _render_finding_zh if language == "zh" else _render_finding_en
 
     if language == "zh":
-        return _build_report_zh(url, date, lang_detected, scores, all_module_findings, priority_findings, data_needed_findings, render_fn)
-    return _build_report_en(url, date, lang_detected, scores, all_module_findings, priority_findings, data_needed_findings, render_fn)
+        return _build_report_zh(url, date, lang_detected, scores, all_module_findings, priority_findings, data_needed_findings, render_fn, site_type_str, site_type_conf)
+    return _build_report_en(url, date, lang_detected, scores, all_module_findings, priority_findings, data_needed_findings, render_fn, site_type_str, site_type_conf)
 
 
-def _build_report_en(url, date, lang_detected, scores, module_findings, priority_findings, data_needed_findings, render_fn) -> str:
+def _build_report_en(url, date, lang_detected, scores, module_findings, priority_findings, data_needed_findings, render_fn, site_type="general", site_type_conf="low") -> str:
     status_label = {mod: _status_label(s) for mod, s in scores.items()}
     summary_rows = "\n".join(
         f"| {mod} | {STATUS_EMOJI.get(status_label[mod], '')} | {'N/A (no data)' if scores[mod] is None else f'{scores[mod]}/100'} |"
@@ -661,6 +678,7 @@ def _build_report_en(url, date, lang_detected, scores, module_findings, priority
 **Target**: {url}
 **Date**: {date}
 **Detected Language**: {lang_detected}
+**Detected Site Type**: {site_type} (confidence: {site_type_conf})
 
 ---
 
@@ -690,7 +708,7 @@ def _build_report_en(url, date, lang_detected, scores, module_findings, priority
 """
 
 
-def _build_report_zh(url, date, lang_detected, scores, module_findings, priority_findings, data_needed_findings, render_fn) -> str:
+def _build_report_zh(url, date, lang_detected, scores, module_findings, priority_findings, data_needed_findings, render_fn, site_type="general", site_type_conf="low") -> str:
     status_label = {mod: _status_label(s) for mod, s in scores.items()}
     summary_rows = "\n".join(
         f"| {mod} | {STATUS_EMOJI.get(status_label[mod], '')} | {'N/A（无数据）' if scores[mod] is None else f'{scores[mod]}/100'} |"
@@ -729,6 +747,7 @@ def _build_report_zh(url, date, lang_detected, scores, module_findings, priority
 **目标网站**: {url}
 **诊断日期**: {date}
 **检测语言**: {lang_detected}
+**推断站点类型**: {site_type}（置信度：{site_type_conf}）
 
 ---
 

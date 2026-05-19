@@ -2,9 +2,9 @@
 Main orchestrator for the Google SEO audit.
 
 Usage:
-    python audit_url.py https://example.com
-    python audit_url.py https://example.com --psi-key=AIza...
-    python audit_url.py https://example.com --psi-key=AIza... --gsc=./gsc.csv
+    python3 audit_url.py https://example.com
+    python3 audit_url.py https://example.com --psi-key=AIza...
+    python3 audit_url.py https://example.com --psi-key=AIza... --gsc=./gsc.csv
 """
 
 from __future__ import annotations
@@ -252,11 +252,11 @@ def _parse_args(argv=None):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python audit_url.py https://example.com
-  python audit_url.py https://example.com --psi-key=AIzaSy...
-  python audit_url.py https://example.com --gsc=./gsc-export.csv
-  python audit_url.py https://example.com --format=html --output=report.html
-  python audit_url.py https://example.com --output=report.md
+  python3 audit_url.py https://example.com
+  python3 audit_url.py https://example.com --psi-key=AIzaSy...
+  python3 audit_url.py https://example.com --gsc=./gsc-export.csv
+  python3 audit_url.py https://example.com --format=html --output=report.html
+  python3 audit_url.py https://example.com --output=report.md
         """,
     )
     parser.add_argument("url", help="Target website URL")
