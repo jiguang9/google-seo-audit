@@ -244,3 +244,25 @@ def get_url_metrics(url: str) -> Dict:
             f"Query string: {'present' if parsed.query else 'absent'}",
         ],
     }
+
+
+def check_llms_txt(base_url: str) -> Dict:
+    """Check whether /llms.txt exists at the domain root (AI bot access declarations)."""
+    parsed = urlparse(base_url)
+    llms_url = f"{parsed.scheme}://{parsed.netloc}/llms.txt"
+    result = {
+        "checked_url": llms_url,
+        "exists": False,
+        "content_preview": None,
+        "error": None,
+    }
+    try:
+        r = requests.get(llms_url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=False)
+        if r.status_code == 200 and r.text.strip():
+            result["exists"] = True
+            result["content_preview"] = r.text.strip()[:300]
+        else:
+            result["error"] = f"HTTP {r.status_code}"
+    except requests.RequestException as exc:
+        result["error"] = str(exc)
+    return result

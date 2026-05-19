@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 from fetch_page import (
     check_404_page,
     check_https,
+    check_llms_txt,
     check_robots_txt,
     check_www_redirect,
     fetch_url,
@@ -29,8 +30,10 @@ from fetch_page import (
 from pagespeed import generate_cwv_findings, run_psi_both_strategies
 from parse_gsc import parse_gsc_file
 from parse_html import (
+    check_ai_seo_readiness,
     check_eeat_signals,
     detect_language,
+    detect_site_type,
     parse_breadcrumbs,
     parse_canonical,
     parse_headings,
@@ -173,9 +176,11 @@ def run_audit(
     audit_data["page_404"] = check_404_page(url)
 
     # ------------------------------------------------------------------
-    # 7. URL metrics
+    # 7. URL metrics + llms.txt
     # ------------------------------------------------------------------
     audit_data["url_info"] = get_url_metrics(url)
+    print("[audit] Checking llms.txt ...", flush=True)
+    audit_data["llms_txt"] = check_llms_txt(url)
 
     # ------------------------------------------------------------------
     # 8. HTML analysis
@@ -184,7 +189,7 @@ def run_audit(
     audit_data["tkd"] = parse_tkd(html)
     audit_data["headings"] = parse_headings(html)
     audit_data["canonical"] = parse_canonical(html, url)
-    audit_data["hreflang"] = parse_hreflang(html)
+    audit_data["hreflang"] = parse_hreflang(html, url)
     audit_data["schema"] = parse_schema(html)
     audit_data["images"] = parse_images(html, url)
     audit_data["links"] = parse_links(html, url)
@@ -192,6 +197,10 @@ def run_audit(
     audit_data["og_tags"] = parse_og_tags(html)
     audit_data["eeat"] = check_eeat_signals(html, url)
     audit_data["breadcrumbs"] = parse_breadcrumbs(html)
+    audit_data["site_type"] = detect_site_type(
+        html, url, audit_data["schema"].get("types", [])
+    )
+    audit_data["ai_seo"] = check_ai_seo_readiness(html, url)
 
     # ------------------------------------------------------------------
     # 9. PageSpeed Insights

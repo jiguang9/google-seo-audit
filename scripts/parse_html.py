@@ -173,8 +173,20 @@ def parse_canonical(html: str, page_url: str = "") -> Dict:
     }
 
 
-def parse_hreflang(html: str) -> Dict:
-    """Extract hreflang tags for multilingual/regional targeting."""
+# Common invalid lang code mistakes (lowercase key → correct value)
+_INVALID_LANG_CODES: Dict[str, str] = {
+    "en-uk": "en-GB",
+    "zh-cn": "zh-CN",
+    "zh-tw": "zh-TW",
+    "zh-hk": "zh-HK",
+    "pt-br": "pt-BR",
+    "es-mx": "es-MX",
+    "fr-fr": "fr-FR",
+}
+
+
+def parse_hreflang(html: str, page_url: str = "") -> Dict:
+    """Extract hreflang tags and validate for common configuration errors."""
     soup = BeautifulSoup(html, "lxml")
     tags = soup.find_all("link", rel="alternate", hreflang=True)
 
@@ -184,18 +196,59 @@ def parse_hreflang(html: str) -> Dict:
     ]
     has_x_default = any(e["hreflang"] == "x-default" for e in entries)
 
+    # Self-referencing check: page must include itself in its own hreflang set
+    page_url_clean = page_url.rstrip("/")
+    self_referencing = None
+    if page_url_clean and entries:
+        self_referencing = any(e["href"].rstrip("/") == page_url_clean for e in entries)
+
+    # Invalid lang code detection (e.g. "en-UK" should be "en-GB")
+    invalid_codes = [
+        {"code": e["hreflang"], "suggestion": _INVALID_LANG_CODES[e["hreflang"].lower()]}
+        for e in entries
+        if e["hreflang"].lower() in _INVALID_LANG_CODES
+    ]
+
+    # Relative href check (hreflang hrefs must be absolute URLs)
+    relative_hrefs = [e["href"] for e in entries if e["href"] and not e["href"].startswith("http")]
+
+    issues = []
+    if entries and self_referencing is False:
+        issues.append("missing_self_reference")
+    if entries and not has_x_default and len(entries) > 1:
+        issues.append("missing_x_default")
+    if invalid_codes:
+        issues.append("invalid_lang_codes")
+    if relative_hrefs:
+        issues.append("relative_hrefs")
+
     return {
         "present": bool(entries),
         "count": len(entries),
         "entries": entries,
         "has_x_default": has_x_default,
-        "evidence": f"{len(entries)} hreflang tag(s) found" if entries else "No hreflang tags (only relevant for multilingual sites)",
+        "self_referencing": self_referencing,
+        "invalid_codes": invalid_codes,
+        "relative_hrefs": relative_hrefs,
+        "issues": issues,
+        "evidence": (
+            f"{len(entries)} hreflang tag(s); issues: {issues or 'none'}"
+            if entries
+            else "No hreflang tags (only relevant for multilingual sites)"
+        ),
     }
 
 
 # ---------------------------------------------------------------------------
 # Structured data (Schema.org JSON-LD)
 # ---------------------------------------------------------------------------
+
+_SCHEMA_DETECTION_LIMITATION = (
+    "Static HTML scan only — CMS plugins (Yoast, RankMath, AIOSEO) often inject "
+    "JSON-LD via JavaScript which is not visible here. "
+    "Verify with Google Rich Results Test or browser DevTools if result is unexpected."
+)
+
 
 def parse_schema(html: str) -> Dict:
     """Extract JSON-LD structured data blocks and identify types."""
@@ -229,9 +282,11 @@ def parse_schema(html: str) -> Dict:
         "types": types_found,
         "eligible_for_rich_results": eligible_for_rich_results,
         "parse_errors": parse_errors,
+        "detection_limitation": _SCHEMA_DETECTION_LIMITATION,
         "evidence": (
             f"{len(schemas)} JSON-LD block(s); types: {types_found}"
-            if schemas else "No JSON-LD structured data found"
+            if schemas
+            else f"No JSON-LD found in static HTML. {_SCHEMA_DETECTION_LIMITATION}"
         ),
     }
 
@@ -462,6 +517,125 @@ def parse_breadcrumbs(html: str) -> Dict:
 # ---------------------------------------------------------------------------
 # Keyword density (informational, no target threshold enforced)
 # ---------------------------------------------------------------------------
+
+def detect_site_type(html: str, url: str, schema_types: List[str] = None) -> Dict:
+    """Infer site type from HTML signals, URL patterns, and schema types."""
+    soup = BeautifulSoup(html, "lxml")
+    text_lower = soup.get_text(" ", strip=True).lower()
+    url_lower = url.lower()
+    schema_types = schema_types or []
+
+    signals: Dict[str, List[str]] = {
+        "ecommerce": [],
+        "local": [],
+        "blog": [],
+        "saas": [],
+        "multilingual": [],
+    }
+
+    # Ecommerce
+    if any(t in schema_types for t in ("Product", "Offer", "ItemList")):
+        signals["ecommerce"].append("Product/Offer schema")
+    if any(p in url_lower for p in ("/shop", "/store", "/products", "/cart", "/checkout")):
+        signals["ecommerce"].append("ecommerce URL pattern")
+    if any(p in text_lower for p in ("add to cart", "buy now", "加入购物车", "立即购买", "checkout")):
+        signals["ecommerce"].append("ecommerce UI text")
+
+    # Local business
+    if any(t in schema_types for t in ("LocalBusiness", "Restaurant", "Hotel", "Store")):
+        signals["local"].append("LocalBusiness schema")
+    if re.search(r'\b(opening hours?|business hours?|directions|get directions)\b', text_lower):
+        signals["local"].append("local business text")
+
+    # Blog / content
+    if any(t in schema_types for t in ("Article", "BlogPosting", "NewsArticle")):
+        signals["blog"].append("Article/Blog schema")
+    if any(p in url_lower for p in ("/blog", "/article", "/post", "/news")):
+        signals["blog"].append("blog URL pattern")
+
+    # SaaS / software
+    if "SoftwareApplication" in schema_types:
+        signals["saas"].append("SoftwareApplication schema")
+    if any(p in text_lower for p in ("free trial", "per month", "per user", "/月", "免费试用", "sign up free")):
+        signals["saas"].append("SaaS pricing text")
+    if any(p in url_lower for p in ("/pricing", "/signup", "/register", "/dashboard", "/app/")):
+        signals["saas"].append("SaaS URL pattern")
+
+    # Multilingual: detected by hreflang count — left to caller with hreflang data
+    # (annotated externally in audit_url.py)
+
+    scored = sorted(signals.items(), key=lambda x: len(x[1]), reverse=True)
+    best_type, best_signals = scored[0]
+
+    if not best_signals:
+        return {
+            "type": "general",
+            "signals": [],
+            "confidence": "low",
+            "evidence": "No strong site type signals detected; treating as general site",
+        }
+
+    return {
+        "type": best_type,
+        "signals": best_signals,
+        "all_signals": {k: v for k, v in signals.items() if v},
+        "confidence": "medium" if len(best_signals) >= 2 else "low",
+        "evidence": f"Inferred site type: {best_type} ({'; '.join(best_signals)})",
+    }
+
+
+def check_ai_seo_readiness(html: str, url: str) -> Dict:
+    """
+    Check signals relevant for AI search visibility: AEO, GEO, AI Overviews.
+    Looks for FAQ/HowTo schema, entity markup, author attribution, Q&A content.
+    """
+    soup = BeautifulSoup(html, "lxml")
+    text = soup.get_text(" ", strip=True)
+
+    ld_blocks = [s.string or "" for s in soup.find_all("script", type="application/ld+json")]
+    ld_combined = " ".join(ld_blocks)
+
+    present: List[str] = []
+    missing: List[str] = []
+
+    # FAQ or HowTo schema → structured answers AI can extract
+    has_faq = '"FAQPage"' in ld_combined or '"HowTo"' in ld_combined
+    (present if has_faq else missing).append("faq_or_howto_schema")
+
+    # Organization or Person entity → helps AI build knowledge graph
+    has_entity = '"Organization"' in ld_combined or '"Person"' in ld_combined
+    (present if has_entity else missing).append("entity_schema")
+
+    # Author attribution (schema, itemprop, or class-based)
+    has_author = bool(
+        soup.find(attrs={"itemprop": re.compile("author", re.I)})
+        or soup.find(class_=re.compile(r"\bauthor\b", re.I))
+        or re.search(r'\b(by |written by |author:)\s*\w', text.lower())
+    )
+    (present if has_author else missing).append("author_attribution")
+
+    # Answer-structured Q&A content patterns
+    has_qa = bool(re.search(
+        r'\b(what is|how to|why does|how does|what are|什么是|如何|为什么|怎么)\b.{10,200}\?',
+        text, re.I
+    ))
+    (present if has_qa else missing).append("answer_structured_content")
+
+    parsed = urlparse(url)
+    llms_txt_url = f"{parsed.scheme}://{parsed.netloc}/llms.txt"
+
+    return {
+        "present": present,
+        "missing": missing,
+        "has_faq_schema": has_faq,
+        "has_entity_schema": has_entity,
+        "has_author": has_author,
+        "has_qa_content": has_qa,
+        "llms_txt_url": llms_txt_url,
+        "evidence": f"AI SEO signals present: {present}; missing: {missing}",
+        "confidence": "medium",
+    }
+
 
 def estimate_keyword_density(html: str, keyword: str) -> Dict:
     """Estimate how often a keyword appears relative to total word count."""

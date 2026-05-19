@@ -17,9 +17,19 @@ triggers:
     - "run google seo audit on {url}"
     - "check seo for {url}"
     - "diagnose {url}"
+    - "my traffic dropped for {url}"
+    - "lost rankings for {url}"
+    - "google update hit {url}"
+    - "crawl errors on {url}"
+    - "indexing issues with {url}"
+    - "core web vitals problem on {url}"
+    - "why is {url} not indexed"
     - "用 google-seo-audit 诊断 {url}"
     - "对 {url} 进行 SEO 诊断"
     - "检查 {url} 的 SEO"
+    - "{url} 流量下跌"
+    - "{url} 排名下降"
+    - "{url} 收录异常"
   slash_command: /google-seo-audit
 args:
   - name: url
@@ -79,6 +89,20 @@ Run a Google SEO audit on https://example.com
 
 The agent must extract `url`, optional `psi-key`, and optional `gsc` path
 from the invocation, then follow the execution steps below.
+
+---
+
+## Initial Assessment (when running manually without bash)
+
+Before auditing, gather context to improve recommendation quality:
+
+1. **Site context** — What type of site? (SaaS, e-commerce, blog, local business, multilingual)
+2. **Business goal** — What are the priority topics or target keywords?
+3. **Current state** — Any known issues? Recent migrations or major changes? Organic traffic trend?
+4. **Scope** — Full site or specific pages? Access to Google Search Console?
+
+If the user hasn't provided this context and is available for questions, ask before running.
+If running automated (slash command / bash), skip this and proceed directly — the audit infers site type from page signals.
 
 ---
 
@@ -152,7 +176,20 @@ Perform each check; record evidence, status, severity, confidence:
 | URL parameters | Check for `?key=value` in URL; note canonical strategy needed |
 | Canonical tag | Parse `<link rel="canonical">` from HTML head |
 | Structured data | Parse `<script type="application/ld+json">` blocks; identify @type values |
-| Hreflang | Parse `<link rel="alternate" hreflang="...">` tags |
+| llms.txt | Fetch `{origin}/llms.txt`; note existence and AI access policy |
+| Hreflang | Parse `<link rel="alternate" hreflang="...">` tags; validate self-reference, x-default, lang codes |
+
+> **Schema detection limitation**: `web_fetch` and static HTML parsing cannot see JSON-LD injected by JavaScript
+> (common with Yoast, RankMath, AIOSEO plugins). If no schema is found, confidence is **medium** — verify with
+> [Google Rich Results Test](https://search.google.com/test/rich-results) or browser DevTools before concluding schema is absent.
+
+**Hreflang validation checklist** (when hreflang tags are present):
+- Self-referencing entry: the current page must include itself in the hreflang set
+- Reciprocal return tags: every target page must link back (cannot verify without fetching each page)
+- x-default present when targeting 2+ locales
+- Valid BCP-47 codes: `en-GB` not `en-UK`; `zh-CN` not `zh-cn` (case matters to some parsers)
+- All href values must be absolute URLs
+- Canonical URL must appear in the hreflang set — if it doesn't, the cluster is silently dropped
 
 ---
 

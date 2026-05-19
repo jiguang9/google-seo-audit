@@ -716,6 +716,7 @@ _ZH_MODULE: Dict[str, str] = {
     "Internal Links": "内链结构",
     "Core Web Vitals":"核心网页指标",
     "Mobile":         "移动端体验",
+    "AI SEO":         "AI 搜索优化",
 }
 
 _ZH_CHECK: Dict[str, str] = {
@@ -749,6 +750,16 @@ _ZH_CHECK: Dict[str, str] = {
     "anchor_text_quality":    "锚文本质量",
     "breadcrumbs":            "面包屑导航",
     "breadcrumb_schema":      "面包屑 Schema 标记",
+    # Technical SEO — hreflang
+    "hreflang":                   "Hreflang 配置",
+    "hreflang_self_reference":    "Hreflang 自引用",
+    "hreflang_x_default":         "Hreflang x-default",
+    "hreflang_lang_codes":        "Hreflang 语言代码",
+    "hreflang_absolute_urls":     "Hreflang 绝对 URL",
+    # AI SEO
+    "faq_schema":             "FAQ / HowTo Schema",
+    "entity_clarity":         "实体清晰度",
+    "llms_txt":               "llms.txt AI 权限声明",
     # Core Web Vitals
     "psi_mobile":             "PSI 移动端（数据待补充）",
     "psi_desktop":            "PSI 桌面端（数据待补充）",
@@ -821,6 +832,22 @@ _ZH_IMPACT: Dict[str, str] = {
         "面包屑导航有助于 Google 理解网站结构，并可在 SERP 中展示面包屑路径",
     "breadcrumb_schema":
         "已有 HTML 面包屑，但缺少 BreadcrumbList Schema 标记，无法在 SERP 展示富媒体面包屑",
+    "hreflang":
+        "Hreflang 配置在本页面检测通过",
+    "hreflang_self_reference":
+        "缺少自引用条目时，Google 会忽略整个 hreflang 集群，导致多语言定向完全失效",
+    "hreflang_x_default":
+        "没有 x-default 回退声明时，Google 对未明确定向的用户语言无法判断应该展示哪个版本",
+    "hreflang_lang_codes":
+        "无效的语言代码会导致 Google 静默丢弃该 hreflang 对，多语言定向失效",
+    "hreflang_absolute_urls":
+        "Hreflang href 必须使用绝对 URL；相对 URL 会被 Google 忽略",
+    "faq_schema":
+        "FAQ 和 HowTo schema 能提高页面被 AI 概述、精选摘要和语音搜索提取的概率",
+    "entity_clarity":
+        "AI 搜索系统依赖实体图谱识别品牌；缺少实体 schema 会降低品牌关联准确性",
+    "llms_txt":
+        "llms.txt 向 AI 爬虫（GPTBot、ClaudeBot 等）声明内容使用权限；缺失意味着没有明确的 AI 访问策略",
     "psi_mobile":
         "缺少 PageSpeed 数据，无法评估 Core Web Vitals 指标",
     "psi_desktop":
@@ -896,6 +923,22 @@ _ZH_FIX: Dict[str, str] = {
         "添加面包屑导航，并配套 BreadcrumbList JSON-LD Schema 标记",
     "breadcrumb_schema":
         "为现有面包屑添加 JSON-LD BreadcrumbList 标记，以在 Google 搜索结果中展示面包屑路径",
+    "hreflang":
+        None,
+    "hreflang_self_reference":
+        "为当前页面所在语言版本添加 <link rel='alternate' hreflang='xx' href='{当前页URL}'> 自引用条目",
+    "hreflang_x_default":
+        "添加 <link rel='alternate' hreflang='x-default' href='{默认页URL}'> 回退声明（通常指向语言选择页或默认语言首页）",
+    "hreflang_lang_codes":
+        "使用 BCP-47 格式：ISO 639-1 语言码 + 可选 ISO 3166-1 地区码（如 en-GB 不是 en-UK；zh-CN 不是 zh-china）",
+    "hreflang_absolute_urls":
+        "将所有 hreflang href 值替换为包含协议和域名的完整绝对 URL",
+    "faq_schema":
+        "为 Q&A 内容添加 FAQPage JSON-LD；为分步骤指南内容添加 HowTo schema",
+    "entity_clarity":
+        "添加 Organization schema，包含 name、url、description 和 sameAs（社交媒体主页链接）",
+    "llms_txt":
+        "参照 llmstxt.org 规范创建 /llms.txt，列出关键页面及其用途，声明 AI 访问权限",
     "psi_mobile":
         "提供 --psi-key 参数或设置 PAGESPEED_API_KEY 环境变量以提高 API 配额",
     "psi_desktop":

@@ -197,15 +197,15 @@ def build_technical_findings(audit: Dict) -> List[Finding]:
             impact="Canonical tag present; helps consolidate link signals",
         ))
 
-    # Structured data
+    # Structured data — confidence is medium when not found because JS-injected schema is invisible
     schema = audit.get("schema", {})
     if not schema.get("present"):
         findings.append(Finding(
             module="Technical SEO", check="structured_data",
-            status="warning", severity="medium", confidence="high",
-            evidence="No JSON-LD structured data found",
+            status="warning", severity="medium", confidence="medium",
+            evidence=schema.get("evidence", "No JSON-LD structured data found in static HTML"),
             impact="Missing structured data reduces eligibility for rich results in Google SERP",
-            fix="Add relevant Schema.org markup (Organization, BreadcrumbList, Article, etc.)",
+            fix="Add Schema.org markup (Organization, BreadcrumbList, Article). Verify JS-injected schema with Google Rich Results Test.",
         ))
     else:
         eligible = schema.get("eligible_for_rich_results", [])
@@ -215,6 +215,57 @@ def build_technical_findings(audit: Dict) -> List[Finding]:
             evidence=schema.get("evidence", ""),
             impact=f"Eligible for rich results: {eligible}" if eligible else "Structured data present",
         ))
+
+    # Hreflang validation (only when tags are present)
+    hreflang = audit.get("hreflang", {})
+    if hreflang.get("present"):
+        issues = hreflang.get("issues", [])
+
+        if "missing_self_reference" in issues:
+            findings.append(Finding(
+                module="Technical SEO", check="hreflang_self_reference",
+                status="fail", severity="high", confidence="high",
+                evidence=f"Page URL not found in its own hreflang set ({hreflang.get('count')} tags present)",
+                impact="Google ignores the entire hreflang cluster when self-referencing entry is missing",
+                fix="Add a <link rel='alternate' hreflang='xx' href='{this-page-url}'> entry for the current page's own locale",
+            ))
+
+        if "missing_x_default" in issues:
+            findings.append(Finding(
+                module="Technical SEO", check="hreflang_x_default",
+                status="warning", severity="medium", confidence="high",
+                evidence=f"{hreflang.get('count')} hreflang tags present but no x-default fallback declared",
+                impact="Without x-default, Google has no fallback for users whose locale isn't explicitly targeted",
+                fix="Add <link rel='alternate' hreflang='x-default' href='{fallback-url}'> (typically points to the default-language homepage or a language-selector page)",
+            ))
+
+        if "invalid_lang_codes" in issues:
+            bad = hreflang.get("invalid_codes", [])
+            bad_str = "; ".join(f"{b['code']} → {b['suggestion']}" for b in bad)
+            findings.append(Finding(
+                module="Technical SEO", check="hreflang_lang_codes",
+                status="fail", severity="high", confidence="high",
+                evidence=f"Invalid hreflang codes detected: {bad_str}",
+                impact="Invalid lang codes cause Google to silently drop the hreflang pair",
+                fix="Use BCP-47 format: ISO 639-1 language + optional ISO 3166-1 region (e.g. en-GB not en-UK)",
+            ))
+
+        if "relative_hrefs" in issues:
+            findings.append(Finding(
+                module="Technical SEO", check="hreflang_absolute_urls",
+                status="fail", severity="high", confidence="high",
+                evidence=f"Relative URLs in hreflang: {hreflang.get('relative_hrefs', [])[:3]}",
+                impact="Hreflang href values must be absolute URLs; relative URLs are ignored",
+                fix="Replace all hreflang href values with full absolute URLs including protocol and domain",
+            ))
+
+        if not issues:
+            findings.append(Finding(
+                module="Technical SEO", check="hreflang",
+                status="pass", severity="medium", confidence="high",
+                evidence=hreflang.get("evidence", ""),
+                impact="Hreflang configuration looks well-formed on this page",
+            ))
 
     return findings
 
@@ -405,6 +456,68 @@ def build_link_findings(audit: Dict) -> List[Finding]:
 # Report assembly
 # ---------------------------------------------------------------------------
 
+def build_ai_seo_findings(audit: Dict) -> List[Finding]:
+    """Lightweight AI search readiness checks (AEO, GEO, AI Overviews)."""
+    findings = []
+    ai_seo = audit.get("ai_seo", {})
+    if not ai_seo:
+        return findings
+
+    # FAQ / HowTo schema — structured answers AI can extract
+    if not ai_seo.get("has_faq_schema"):
+        findings.append(Finding(
+            module="AI SEO", check="faq_schema",
+            status="warning", severity="low", confidence="medium",
+            evidence="No FAQPage or HowTo schema found in static HTML",
+            impact="FAQ and HowTo schema improve eligibility for AI Overviews, featured snippets, and voice answers",
+            fix="Add FAQPage JSON-LD for Q&A content; HowTo schema for step-by-step guides",
+        ))
+    else:
+        findings.append(Finding(
+            module="AI SEO", check="faq_schema",
+            status="pass", severity="low", confidence="medium",
+            evidence="FAQPage or HowTo schema present",
+            impact="Eligible for structured answer extraction by AI search engines",
+        ))
+
+    # Entity schema — helps AI build knowledge graph
+    if not ai_seo.get("has_entity_schema"):
+        findings.append(Finding(
+            module="AI SEO", check="entity_clarity",
+            status="warning", severity="low", confidence="medium",
+            evidence="No Organization or Person entity schema found",
+            impact="AI systems use entity graphs for brand recognition; missing entity markup reduces association accuracy",
+            fix="Add Organization schema with name, url, description, and sameAs (social profiles)",
+        ))
+    else:
+        findings.append(Finding(
+            module="AI SEO", check="entity_clarity",
+            status="pass", severity="low", confidence="medium",
+            evidence="Organization or Person entity schema present",
+            impact="Entity markup supports AI knowledge graph association",
+        ))
+
+    # llms.txt — AI bot access declaration
+    llms_txt = audit.get("llms_txt", {})
+    if not llms_txt.get("exists"):
+        findings.append(Finding(
+            module="AI SEO", check="llms_txt",
+            status="warning", severity="low", confidence="high",
+            evidence=f"llms.txt not found at {llms_txt.get('checked_url', 'domain root')}",
+            impact="llms.txt declares to AI crawlers (GPTBot, ClaudeBot) which content may be used; absence means no explicit AI access policy",
+            fix="Create /llms.txt following the llmstxt.org spec; at minimum list key pages and their purpose",
+        ))
+    else:
+        findings.append(Finding(
+            module="AI SEO", check="llms_txt",
+            status="pass", severity="low", confidence="high",
+            evidence=f"llms.txt found at {llms_txt.get('checked_url')}",
+            impact="AI access policy declared",
+        ))
+
+    return findings
+
+
 def assemble_findings(audit_data: Dict) -> Dict[str, List[Finding]]:
     """Build all findings grouped by module."""
     module_findings: Dict[str, List[Finding]] = {}
@@ -425,6 +538,11 @@ def assemble_findings(audit_data: Dict) -> Dict[str, List[Finding]]:
             Finding(**{k: v for k, v in f.items() if k in Finding.__dataclass_fields__})
             for f in cwv
         ]
+
+    # AI SEO readiness
+    ai_seo_f = build_ai_seo_findings(audit_data)
+    if ai_seo_f:
+        module_findings["AI SEO"] = ai_seo_f
 
     return module_findings
 
