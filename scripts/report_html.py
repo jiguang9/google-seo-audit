@@ -981,12 +981,13 @@ def _esc(text: str) -> str:
     )
 
 
-def _score_color(score: int) -> str:
+def _score_color(score) -> str:
     label = _status_label(score)
     return {
         "pass":    "#15803D",
         "warning": "#A16207",
         "fail":    "#B91C1C",
+        "unknown": "#9A9590",
     }.get(label, "#C8C2BA")
 
 
@@ -1156,14 +1157,19 @@ def _conf_bdg(conf: str, lang: str) -> str:
     return f'<span class="badge c-{conf}">{labels.get(conf, conf.upper())}</span>'
 
 
-def _score_card(module: str, score: int, lang: str = "en") -> str:
+def _score_card(module: str, score, lang: str = "en") -> str:
     label       = _status_label(score)
     color       = _score_color(score)
-    num         = str(score) if score >= 0 else "—"
+    if score is None:
+        num       = "N/A"
+        score_val = 0
+    else:
+        num       = str(score)
+        score_val = score
     module_disp = _ZH_MODULE.get(module, module) if lang == "zh" else module
     return (
         f'<div class="score-card">'
-        f'<div class="score-ring" style="--score:{score};--clr:{color}">'
+        f'<div class="score-ring" style="--score:{score_val};--clr:{color}">'
         f'<div class="score-donut">'
         f'<span class="score-number {label}">{num}</span>'
         f'</div></div>'

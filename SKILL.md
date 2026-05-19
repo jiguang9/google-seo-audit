@@ -116,13 +116,13 @@ each step manually using the available tools.
 
 ```bash
 # HTML report (default) — styled, self-contained, version check automatic
-python scripts/audit_url.py {url} [--psi-key={key}] [--gsc={file}] --output=report.html
+python3 scripts/audit_url.py {url} [--psi-key={key}] [--gsc={file}] --output=report.html
 
 # Markdown report (plain text, for piping or further processing)
-python scripts/audit_url.py {url} --format=md --output=report.md
+python3 scripts/audit_url.py {url} --format=md --output=report.md
 
 # Disable automatic version check
-python scripts/audit_url.py {url} --github-owner=""
+python3 scripts/audit_url.py {url} --github-owner=""
 ```
 
 If bash / Python is available: run the command above and output the report.  

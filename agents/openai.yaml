@@ -16,6 +16,19 @@ triggers:
   - "seo audit {url}"
   - "google seo audit {url}"
   - "check seo for {url}"
+  - "diagnose {url}"
+  - "my traffic dropped for {url}"
+  - "lost rankings for {url}"
+  - "google update hit {url}"
+  - "crawl errors on {url}"
+  - "indexing issues with {url}"
+  - "core web vitals problem on {url}"
+  - "why is {url} not indexed"
+  - "用 google-seo-audit 诊断 {url}"
+  - "对 {url} 进行 SEO 诊断"
+  - "{url} 流量下跌"
+  - "{url} 排名下降"
+  - "{url} 收录异常"
 
 parameters:
   - name: url

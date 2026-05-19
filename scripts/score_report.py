@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 # ---------------------------------------------------------------------------
 # Finding dataclass
@@ -35,10 +35,14 @@ SEVERITY_EMOJI = {"high": "🔴", "medium": "🟡", "low": "🟢"}
 # Module scorers
 # ---------------------------------------------------------------------------
 
-def _score_from_findings(findings: List[Finding]) -> int:
-    """Compute a 0–100 module score based on weighted findings."""
+def _score_from_findings(findings: List[Finding]) -> Optional[int]:
+    """Compute a 0–100 module score. Returns None when all findings are data_needed (no real data)."""
     if not findings:
         return 100
+
+    # All findings are data_needed → no actual data to score; show N/A rather than a misleading 100
+    if all(f.status == "data_needed" for f in findings):
+        return None
 
     weights = {"high": 3, "medium": 2, "low": 1}
     penalties = {"fail": 1.0, "warning": 0.4, "unknown": 0.2, "data_needed": 0.0, "pass": 0.0}
@@ -52,7 +56,9 @@ def _score_from_findings(findings: List[Finding]) -> int:
     return max(0, round((1 - ratio) * 100))
 
 
-def _status_label(score: int) -> str:
+def _status_label(score: Optional[int]) -> str:
+    if score is None:
+        return "unknown"
     if score >= 80:
         return "pass"
     if score >= 55:
@@ -619,7 +625,7 @@ def generate_report(audit_data: Dict, language: str = "en") -> str:
 def _build_report_en(url, date, lang_detected, scores, module_findings, priority_findings, data_needed_findings, render_fn) -> str:
     status_label = {mod: _status_label(s) for mod, s in scores.items()}
     summary_rows = "\n".join(
-        f"| {mod} | {STATUS_EMOJI.get(status_label[mod], '')} | {scores[mod]}/100 |"
+        f"| {mod} | {STATUS_EMOJI.get(status_label[mod], '')} | {'N/A (no data)' if scores[mod] is None else f'{scores[mod]}/100'} |"
         for mod in scores
     )
 
@@ -687,7 +693,7 @@ def _build_report_en(url, date, lang_detected, scores, module_findings, priority
 def _build_report_zh(url, date, lang_detected, scores, module_findings, priority_findings, data_needed_findings, render_fn) -> str:
     status_label = {mod: _status_label(s) for mod, s in scores.items()}
     summary_rows = "\n".join(
-        f"| {mod} | {STATUS_EMOJI.get(status_label[mod], '')} | {scores[mod]}/100 |"
+        f"| {mod} | {STATUS_EMOJI.get(status_label[mod], '')} | {'N/A（无数据）' if scores[mod] is None else f'{scores[mod]}/100'} |"
         for mod in scores
     )
 
