@@ -1450,22 +1450,34 @@ def generate_html_report(audit_data: Dict, language: str = "en") -> str:
 
     score_cards = "".join(_score_card(mod, s, lang) for mod, s in scores.items())
 
-    # Executive summary
-    exec_summary_text = build_executive_summary(url, all_module_findings, lang)
-    exec_lines = exec_summary_text.splitlines()
-    exec_overview = _esc(exec_lines[0]) if exec_lines else ""
+    # Executive summary — overview sentence from score_report, top-5 list built here
+    # so we can apply proper translations (zh_translate + zh_evidence)
+    exec_overview = _esc(build_executive_summary(url, all_module_findings, lang).splitlines()[0])
+
+    _sev_ord = {"high": 0, "medium": 1, "low": 2}
+    _sta_ord = {"fail": 0, "warning": 1, "unknown": 2}
+    top5 = sorted(
+        [f for flist in all_module_findings.values() for f in flist
+         if f.status in ("fail", "warning")],
+        key=lambda f: (_sev_ord.get(f.severity, 9), _sta_ord.get(f.status, 9))
+    )[:5]
+
     exec_items_html = ""
-    in_list = False
-    for line in exec_lines[2:]:
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if stripped[0].isdigit() and ". " in stripped:
-            exec_items_html += f'<li>{_esc(stripped)}</li>'
-            in_list = True
+    for f in top5:
+        if lang == "zh":
+            mod_d, chk_d, _, _ = _zh_translate(f)
+            ev_d = _zh_evidence(f.evidence)
         else:
-            exec_items_html += f'<p class="exec-sub">{_esc(stripped)}</p>'
-    exec_list_html = f'<ol class="exec-list">{exec_items_html}</ol>' if in_list else exec_items_html
+            mod_d = f.module
+            chk_d = f.check.replace("_", " ").title()
+            ev_d  = f.evidence
+        ev_short = ev_d[:120] + ("…" if len(ev_d) > 120 else "")
+        exec_items_html += (
+            f'<li><strong>【{_esc(mod_d)}】{_esc(chk_d)}</strong>'
+            f' — {_esc(ev_short)}</li>'
+        )
+
+    exec_list_html = f'<ol class="exec-list">{exec_items_html}</ol>' if exec_items_html else ""
     if lang == "zh":
         exec_eyebrow = "诊断总结"
         exec_label   = "主要问题"
