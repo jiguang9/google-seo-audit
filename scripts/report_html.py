@@ -12,6 +12,7 @@ from score_report import (
     Finding,
     STATUS_EMOJI,
     assemble_findings,
+    build_executive_summary,
     _score_from_findings,
     _status_label,
 )
@@ -618,6 +619,59 @@ details[open] .chev { transform: rotate(90deg); }
   line-height: 1.5;
 }
 
+/* ── EXECUTIVE SUMMARY ───────────────────────────────────────── */
+
+.exec-summary {
+  background: var(--white);
+  border: 1px solid var(--card-br);
+  border-left: 4px solid var(--accent);
+  border-radius: 7px;
+  padding: 22px 28px 24px;
+  margin-bottom: 32px;
+  box-shadow: var(--sh-sm);
+}
+
+.exec-eyebrow {
+  font-family: var(--mono);
+  font-size: .5rem;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.exec-overview {
+  font-size: .9375rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+
+.exec-issues-label {
+  font-size: .6875rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+
+.exec-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: .8125rem;
+  color: var(--ink-2);
+  line-height: 1.75;
+}
+
+.exec-sub {
+  font-size: .8125rem;
+  color: var(--ink-2);
+  margin: 4px 0;
+}
+
 /* ── DISCLAIMER ──────────────────────────────────────────────── */
 
 .disc {
@@ -751,6 +805,9 @@ _ZH_CHECK: Dict[str, str] = {
     "breadcrumbs":            "面包屑导航",
     "breadcrumb_schema":      "面包屑 Schema 标记",
     # Technical SEO — hreflang
+    "hsts":                       "HSTS 安全头",
+    "404_page_size":              "404 页面体积",
+    "pdf_links":                  "PDF 直链（缺少 HTML 落地页）",
     "hreflang":                   "Hreflang 配置",
     "hreflang_self_reference":    "Hreflang 自引用",
     "hreflang_x_default":         "Hreflang x-default",
@@ -833,6 +890,12 @@ _ZH_IMPACT: Dict[str, str] = {
         "面包屑导航有助于 Google 理解网站结构，并可在 SERP 中展示面包屑路径",
     "breadcrumb_schema":
         "已有 HTML 面包屑，但缺少 BreadcrumbList Schema 标记，无法在 SERP 展示富媒体面包屑",
+    "hsts":
+        "没有 HSTS 头时，浏览器可能先尝试 HTTP 连接，增加协议降级风险",
+    "404_page_size":
+        "404 页面过大会在每次 Googlebot 访问不存在 URL 时消耗更多带宽和爬取配额",
+    "pdf_links":
+        "PDF 文件作为独立落地页参与排名效果较弱；HTML 落地页能提供更多可索引的上下文信息",
     "hreflang":
         "Hreflang 配置在本页面检测通过",
     "hreflang_self_reference":
@@ -926,6 +989,12 @@ _ZH_FIX: Dict[str, str] = {
         "添加面包屑导航，并配套 BreadcrumbList JSON-LD Schema 标记",
     "breadcrumb_schema":
         "为现有面包屑添加 JSON-LD BreadcrumbList 标记，以在 Google 搜索结果中展示面包屑路径",
+    "hsts":
+        "在服务器响应头中添加 Strict-Transport-Security: max-age=31536000; includeSubDomains",
+    "404_page_size":
+        "压缩并简化自定义 404 页面，目标体积 < 50 KB",
+    "pdf_links":
+        "为重要 PDF（白皮书、数据表）创建 HTML 落地页，包含标题、摘要和 PDF 下载链接；将内链指向 HTML 页面而非直接链接 PDF",
     "hreflang":
         None,
     "hreflang_self_reference":
@@ -1381,6 +1450,37 @@ def generate_html_report(audit_data: Dict, language: str = "en") -> str:
 
     score_cards = "".join(_score_card(mod, s, lang) for mod, s in scores.items())
 
+    # Executive summary
+    exec_summary_text = build_executive_summary(url, all_module_findings, lang)
+    exec_lines = exec_summary_text.splitlines()
+    exec_overview = _esc(exec_lines[0]) if exec_lines else ""
+    exec_items_html = ""
+    in_list = False
+    for line in exec_lines[2:]:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped[0].isdigit() and ". " in stripped:
+            exec_items_html += f'<li>{_esc(stripped)}</li>'
+            in_list = True
+        else:
+            exec_items_html += f'<p class="exec-sub">{_esc(stripped)}</p>'
+    exec_list_html = f'<ol class="exec-list">{exec_items_html}</ol>' if in_list else exec_items_html
+    if lang == "zh":
+        exec_eyebrow = "诊断总结"
+        exec_label   = "主要问题"
+    else:
+        exec_eyebrow = "Executive Summary"
+        exec_label   = "Top Issues"
+    exec_section_html = (
+        f'<div class="exec-summary">'
+        f'<div class="exec-eyebrow">{exec_eyebrow}</div>'
+        f'<p class="exec-overview">{exec_overview}</p>'
+        f'<div class="exec-issues-label">{exec_label}</div>'
+        f'{exec_list_html}'
+        f'</div>'
+    )
+
     # Priority findings grouped by severity
     groups: Dict[str, List] = {"high": [], "medium": [], "low": []}
     for f in prio:
@@ -1491,6 +1591,8 @@ def generate_html_report(audit_data: Dict, language: str = "en") -> str:
 {update_html}
 
 <div class="content">
+
+  {exec_section_html}
 
   <div class="section">
     <div class="section-head">

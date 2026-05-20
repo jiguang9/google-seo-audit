@@ -99,6 +99,23 @@ def build_technical_findings(audit: Dict) -> List[Finding]:
             impact="HTTPS correctly enforced",
         ))
 
+    # HSTS (Strict-Transport-Security header)
+    if https.get("hsts_present") is False and not https.get("error"):
+        findings.append(Finding(
+            module="Technical SEO", check="hsts",
+            status="warning", severity="low", confidence="high",
+            evidence="Strict-Transport-Security header absent",
+            impact="Without HSTS, browsers may attempt HTTP first; increases risk of protocol-downgrade attacks",
+            fix="Add Strict-Transport-Security: max-age=31536000; includeSubDomains to server response headers",
+        ))
+    elif https.get("hsts_present"):
+        findings.append(Finding(
+            module="Technical SEO", check="hsts",
+            status="pass", severity="low", confidence="high",
+            evidence=f"HSTS header present: {https.get('hsts_value', '')}",
+            impact="HSTS reduces protocol-downgrade risk",
+        ))
+
     # www / non-www consistency
     www = audit.get("www_redirect", {})
     if www.get("redirect_type") == "inconsistent":
@@ -156,11 +173,23 @@ def build_technical_findings(audit: Dict) -> List[Finding]:
         ))
     else:
         custom = page_404.get("has_custom_404_page")
+        size_kb = (page_404.get("response_size_bytes") or 0) // 1024
         findings.append(Finding(
             module="Technical SEO", check="404_page",
             status="pass", severity="medium", confidence="high",
-            evidence=f"404 page returns HTTP 404; custom page: {'yes' if custom else 'no'}",
+            evidence=f"404 page returns HTTP 404; custom page: {'yes' if custom else 'no'}; size: {size_kb} KB",
             impact="Correct 404 handling prevents crawl budget waste",
+        ))
+
+    # Large 404 page
+    if page_404.get("large_404_page"):
+        size_kb = (page_404.get("response_size_bytes") or 0) // 1024
+        findings.append(Finding(
+            module="Technical SEO", check="404_page_size",
+            status="warning", severity="low", confidence="high",
+            evidence=f"404 error page is {size_kb} KB (threshold: 100 KB)",
+            impact="Oversized 404 pages waste crawl bandwidth on every non-existent URL Googlebot visits",
+            fix="Compress and simplify the custom 404 page; target < 50 KB",
         ))
 
     # URL depth
@@ -445,6 +474,18 @@ def build_link_findings(audit: Dict) -> List[Finding]:
             fix="Replace generic anchors with descriptive, keyword-relevant text",
         ))
 
+    # PDF links without HTML landing pages
+    pdf_count = links.get("pdf_link_count", 0)
+    if pdf_count >= 3:
+        samples = [l["url"].split("/")[-1] for l in links.get("pdf_link_samples", [])]
+        findings.append(Finding(
+            module="Internal Links", check="pdf_links",
+            status="warning", severity="low", confidence="high",
+            evidence=f"{pdf_count} direct PDF link(s) found; samples: {samples[:3]}",
+            impact="PDF files don't rank as well as HTML pages; direct PDF links bypass any HTML context Google could index",
+            fix="Create HTML landing pages for key PDFs (whitepapers, datasheets) with title, description, and the PDF embed; link to the HTML page instead",
+        ))
+
     if not breadcrumbs.get("html_breadcrumb"):
         findings.append(Finding(
             module="Internal Links", check="breadcrumbs",
@@ -536,6 +577,55 @@ def build_ai_seo_findings(audit: Dict) -> List[Finding]:
         ))
 
     return findings
+
+
+def build_executive_summary(url: str, module_findings: Dict[str, List[Finding]], language: str = "en") -> str:
+    """Generate a narrative executive summary with top issues list."""
+    all_f = [f for flist in module_findings.values() for f in flist]
+    fails_high = [f for f in all_f if f.severity == "high" and f.status == "fail"]
+    issues_med  = [f for f in all_f if f.severity == "medium" and f.status in ("fail", "warning")]
+    passes = [f for f in all_f if f.status == "pass"]
+
+    sev = {"high": 0, "medium": 1, "low": 2}
+    sta = {"fail": 0, "warning": 1, "unknown": 2}
+    top5 = sorted(
+        [f for f in all_f if f.status in ("fail", "warning")],
+        key=lambda f: (sev.get(f.severity, 9), sta.get(f.status, 9))
+    )[:5]
+
+    if language == "zh":
+        n_high, n_med = len(fails_high), len(issues_med)
+        if n_high == 0:
+            overall = "技术 SEO 基础较好，当前问题集中在内容优化与体验改进层面。"
+        elif n_high <= 2:
+            overall = f"发现 {n_high} 个高优先级问题需立即处理，其余为内容和体验层面的改进建议。"
+        else:
+            overall = f"发现 {n_high} 个高优先级问题及 {n_med} 个中等问题，建议按优先级逐步修复。"
+        issue_header = "主要问题："
+        lines = [overall, "", issue_header]
+        for i, f in enumerate(top5, 1):
+            mod = _ZH_MODULE_SUMMARY.get(f.module, f.module)
+            chk = f.check.replace("_", " ")
+            lines.append(f"{i}. 【{mod}】{chk} — {f.evidence[:120]}")
+    else:
+        n_high, n_med = len(fails_high), len(issues_med)
+        if n_high == 0:
+            overall = f"Technical SEO foundation is solid. Primary opportunities are in content quality and experience improvements."
+        elif n_high <= 2:
+            overall = f"Found {n_high} critical issue(s) requiring immediate attention, plus {n_med} medium-priority improvements."
+        else:
+            overall = f"Found {n_high} critical issues and {n_med} medium-priority findings. Prioritised action plan below."
+        lines = [overall, "", "Top issues:"]
+        for i, f in enumerate(top5, 1):
+            lines.append(f"{i}. [{f.module}] {f.check.replace('_', ' ').title()} — {f.evidence[:120]}")
+
+    return "\n".join(lines)
+
+
+_ZH_MODULE_SUMMARY = {
+    "Technical SEO": "技术 SEO", "Content": "内容", "Internal Links": "内链",
+    "Core Web Vitals": "CWV", "AI SEO": "AI SEO",
+}
 
 
 def assemble_findings(audit_data: Dict) -> Dict[str, List[Finding]]:
@@ -633,28 +723,33 @@ def generate_report(audit_data: Dict, language: str = "en") -> str:
     ]
 
     render_fn = _render_finding_zh if language == "zh" else _render_finding_en
+    exec_summary = build_executive_summary(url, all_module_findings, language)
 
     if language == "zh":
-        return _build_report_zh(url, date, lang_detected, scores, all_module_findings, priority_findings, data_needed_findings, render_fn, site_type_str, site_type_conf)
-    return _build_report_en(url, date, lang_detected, scores, all_module_findings, priority_findings, data_needed_findings, render_fn, site_type_str, site_type_conf)
+        return _build_report_zh(url, date, lang_detected, scores, all_module_findings, priority_findings, data_needed_findings, render_fn, site_type_str, site_type_conf, exec_summary)
+    return _build_report_en(url, date, lang_detected, scores, all_module_findings, priority_findings, data_needed_findings, render_fn, site_type_str, site_type_conf, exec_summary)
 
 
-def _build_report_en(url, date, lang_detected, scores, module_findings, priority_findings, data_needed_findings, render_fn, site_type="general", site_type_conf="low") -> str:
+def _build_report_en(url, date, lang_detected, scores, module_findings, priority_findings, data_needed_findings, render_fn, site_type="general", site_type_conf="low", exec_summary="") -> str:
     status_label = {mod: _status_label(s) for mod, s in scores.items()}
     summary_rows = "\n".join(
         f"| {mod} | {STATUS_EMOJI.get(status_label[mod], '')} | {'N/A (no data)' if scores[mod] is None else f'{scores[mod]}/100'} |"
         for mod in scores
     )
 
-    priority_sections = {"🔴 High Severity": [], "🟡 Medium Severity": [], "🟢 Low Severity / Suggestions": []}
+    priority_sections = {
+        "🔴 Critical — Fix Immediately": [],
+        "🟡 This Month": [],
+        "🟢 Quick Wins": [],
+    }
     for i, f in enumerate(priority_findings, 1):
         rendered = render_fn(f, i)
         if f.severity == "high":
-            priority_sections["🔴 High Severity"].append(rendered)
+            priority_sections["🔴 Critical — Fix Immediately"].append(rendered)
         elif f.severity == "medium":
-            priority_sections["🟡 Medium Severity"].append(rendered)
+            priority_sections["🟡 This Month"].append(rendered)
         else:
-            priority_sections["🟢 Low Severity / Suggestions"].append(rendered)
+            priority_sections["🟢 Quick Wins"].append(rendered)
 
     priority_md = ""
     for section, items in priority_sections.items():
@@ -682,7 +777,13 @@ def _build_report_en(url, date, lang_detected, scores, module_findings, priority
 
 ---
 
-## Summary
+## Executive Summary
+
+{exec_summary}
+
+---
+
+## Module Scores
 
 | Module | Status | Score |
 |--------|--------|-------|
@@ -690,7 +791,7 @@ def _build_report_en(url, date, lang_detected, scores, module_findings, priority
 
 ---
 
-## Priority Fix List
+## Priority Action Plan
 
 {priority_md}
 
@@ -708,22 +809,26 @@ def _build_report_en(url, date, lang_detected, scores, module_findings, priority
 """
 
 
-def _build_report_zh(url, date, lang_detected, scores, module_findings, priority_findings, data_needed_findings, render_fn, site_type="general", site_type_conf="low") -> str:
+def _build_report_zh(url, date, lang_detected, scores, module_findings, priority_findings, data_needed_findings, render_fn, site_type="general", site_type_conf="low", exec_summary="") -> str:
     status_label = {mod: _status_label(s) for mod, s in scores.items()}
     summary_rows = "\n".join(
         f"| {mod} | {STATUS_EMOJI.get(status_label[mod], '')} | {'N/A（无数据）' if scores[mod] is None else f'{scores[mod]}/100'} |"
         for mod in scores
     )
 
-    priority_sections = {"🔴 高优先级（立即修复）": [], "🟡 中优先级（本月内处理）": [], "🟢 低优先级（持续改进）": []}
+    priority_sections = {
+        "🔴 立即修复（Critical）": [],
+        "🟡 本月内处理": [],
+        "🟢 Quick Wins（快速见效）": [],
+    }
     for i, f in enumerate(priority_findings, 1):
         rendered = render_fn(f, i)
         if f.severity == "high":
-            priority_sections["🔴 高优先级（立即修复）"].append(rendered)
+            priority_sections["🔴 立即修复（Critical）"].append(rendered)
         elif f.severity == "medium":
-            priority_sections["🟡 中优先级（本月内处理）"].append(rendered)
+            priority_sections["🟡 本月内处理"].append(rendered)
         else:
-            priority_sections["🟢 低优先级（持续改进）"].append(rendered)
+            priority_sections["🟢 Quick Wins（快速见效）"].append(rendered)
 
     priority_md = ""
     for section, items in priority_sections.items():
@@ -751,7 +856,13 @@ def _build_report_zh(url, date, lang_detected, scores, module_findings, priority
 
 ---
 
-## 总览
+## 诊断总结
+
+{exec_summary}
+
+---
+
+## 模块评分
 
 | 模块 | 状态 | 得分 |
 |------|------|------|
@@ -759,7 +870,7 @@ def _build_report_zh(url, date, lang_detected, scores, module_findings, priority
 
 ---
 
-## 优先修复清单
+## 优先行动计划
 
 {priority_md}
 

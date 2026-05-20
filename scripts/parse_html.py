@@ -369,6 +369,14 @@ def parse_links(html: str, base_url: str) -> Dict:
         if anchor_text and weak_anchor_patterns.match(anchor_text):
             weak_anchors.append({"url": full_url, "anchor": anchor_text})
 
+    # PDF link detection — PDFs without HTML landing pages hurt crawl efficiency
+    pdf_links = [
+        {"url": full_url, "anchor": anchor_text}
+        for a in soup.find_all("a", href=True)
+        for full_url, anchor_text in [(urljoin(base_url, a["href"].strip()), a.get_text(strip=True))]
+        if full_url.lower().endswith(".pdf") or ".pdf?" in full_url.lower()
+    ]
+
     return {
         "internal_count": len(internal),
         "external_count": len(external),
@@ -376,9 +384,11 @@ def parse_links(html: str, base_url: str) -> Dict:
         "external_links": external[:10],
         "weak_anchor_count": len(weak_anchors),
         "weak_anchor_samples": weak_anchors[:5],
+        "pdf_link_count": len(pdf_links),
+        "pdf_link_samples": pdf_links[:5],
         "evidence": (
             f"{len(internal)} internal links, {len(external)} external links; "
-            f"{len(weak_anchors)} weak anchor text instances"
+            f"{len(weak_anchors)} weak anchor text; {len(pdf_links)} PDF link(s)"
         ),
     }
 

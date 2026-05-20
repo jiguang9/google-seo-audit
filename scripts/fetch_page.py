@@ -70,17 +70,28 @@ def check_https(base_url: str) -> Dict:
         result["confidence"] = "medium"
         result["evidence"].append(f"HTTP redirect check failed: {exc}")
 
-    # Test TLS cert validity
+    # Test TLS cert validity + HSTS header
     https_url = f"https://{netloc}"
     try:
-        requests.get(https_url, headers=HEADERS, timeout=TIMEOUT, verify=True)
+        r_https = requests.get(https_url, headers=HEADERS, timeout=TIMEOUT, verify=True)
         result["https_cert_valid"] = True
         result["evidence"].append(f"TLS certificate valid for {netloc}")
+        hsts = r_https.headers.get("Strict-Transport-Security", "")
+        result["hsts_present"] = bool(hsts)
+        result["hsts_value"] = hsts or None
+        if hsts:
+            result["evidence"].append(f"HSTS header present: {hsts}")
+        else:
+            result["evidence"].append("HSTS header absent")
     except requests.exceptions.SSLError as exc:
         result["https_cert_valid"] = False
+        result["hsts_present"] = False
+        result["hsts_value"] = None
         result["evidence"].append(f"TLS certificate error: {exc}")
     except requests.RequestException as exc:
         result["confidence"] = "medium"
+        result["hsts_present"] = False
+        result["hsts_value"] = None
         result["evidence"].append(f"HTTPS cert check failed: {exc}")
 
     return result
@@ -215,10 +226,16 @@ def check_404_page(base_url: str) -> Dict:
 
     try:
         r = requests.get(test_url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
+        size_bytes = len(r.content)
         result["actual_status_code"] = r.status_code
         result["returns_proper_404"] = r.status_code == 404
         result["has_custom_404_page"] = r.status_code == 404 and len(r.text) > 500
-        result["evidence"].append(f"GET {test_url} → HTTP {r.status_code} ({len(r.text)} bytes)")
+        result["response_size_bytes"] = size_bytes
+        result["large_404_page"] = size_bytes > 100_000  # > 100 KB
+        result["evidence"].append(
+            f"GET {test_url} → HTTP {r.status_code} "
+            f"({size_bytes // 1024} KB)"
+        )
     except requests.RequestException as exc:
         result["confidence"] = "low"
         result["evidence"].append(f"404 check failed: {exc}")
