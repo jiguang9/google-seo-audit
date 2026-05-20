@@ -137,6 +137,7 @@ python3 audit_url.py https://example.com --format=md --output=report.md  # plain
 | `--psi-key` | No | [PageSpeed Insights API key](https://developers.google.com/speed/docs/insights/v5/get-started). Free; significantly increases the unauthenticated quota. Try without first — only needed if rate-limited. Can also be set via `PAGESPEED_API_KEY` env var. |
 | `--gsc` | No | Path to a GSC CSV export. Supports 6 export types; auto-detected. |
 | `--format` | No | Output format: `html` (default, styled self-contained) or `md` (plain text) |
+| `--lang` | No | Force report language: `en` or `zh`. Default: auto-detect from page `<html lang>` attribute. Useful when a Chinese-owned site has `lang="en"`. |
 | `--output` | No | Save report to a file instead of stdout |
 | `--json` | No | Output raw audit data as JSON |
 | `--github-owner` | No | GitHub username for version check. Defaults to `jiguang9` — **runs automatically on every audit**. Pass empty string `""` to disable. |

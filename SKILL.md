@@ -41,6 +41,9 @@ args:
   - name: gsc
     required: false
     description: "Path to a Google Search Console CSV export. Auto-detects export type. Optional module."
+  - name: lang
+    required: false
+    description: "Force report language: 'en' or 'zh'. Default: auto-detect from page <html lang> attribute."
 tools_required:
   - web_fetch
   - web_search

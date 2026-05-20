@@ -97,10 +97,12 @@ def run_audit(
     output_json: bool = False,
     github_owner: Optional[str] = "jiguang9",
     output_format: str = "html",
+    lang: Optional[str] = None,
 ) -> str:
     """
     Full Google SEO audit pipeline.
     Returns a formatted markdown report string.
+    lang: force report language ("en" or "zh"); None = auto-detect from page.
     """
     url = _normalise_url(url)
     _check_safe_url(url)   # blocks localhost / private IPs
@@ -137,8 +139,11 @@ def run_audit(
     # ------------------------------------------------------------------
     lang_info = detect_language(html, url)
     audit_data["detected_language"] = lang_info["detected"]
-    report_language = lang_info["report_language"]
-    print(f"[audit] Detected language: {lang_info['detected']} → report in: {report_language}", flush=True)
+    report_language = lang if lang in ("en", "zh") else lang_info["report_language"]
+    if lang in ("en", "zh"):
+        print(f"[audit] Language override: report in {report_language} (detected: {lang_info['detected']})", flush=True)
+    else:
+        print(f"[audit] Detected language: {lang_info['detected']} → report in: {report_language}", flush=True)
 
     # ------------------------------------------------------------------
     # 3. HTTPS & redirects
@@ -273,6 +278,9 @@ Examples:
     parser.add_argument("--format", dest="output_format", default="html",
                         choices=["md", "html"],
                         help="Output format: html (default) or md")
+    parser.add_argument("--lang", dest="lang", default=None,
+                        choices=["en", "zh"],
+                        help="Force report language: en or zh. Default: auto-detect from page.")
     return parser.parse_args(argv)
 
 
@@ -285,6 +293,7 @@ def main(argv=None):
         output_json=args.output_json,
         github_owner=args.github_owner,
         output_format=args.output_format,
+        lang=args.lang,
     )
 
     if args.output_file:
