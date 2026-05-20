@@ -1091,6 +1091,8 @@ _STATIC_EV_ZH: Dict[str, str] = {
         "PSI API 已达限额，请提供 --psi-key 参数或手动粘贴 PSI 报告结果",
     "No hreflang tags (single-language site — expected)":
         "未设置 hreflang 标签（单语言站点，符合预期）",
+    "Strict-Transport-Security header absent":
+        "未检测到 Strict-Transport-Security 安全头（HSTS 缺失）",
 }
 
 # Pattern-based evidence translations (applied in order)
@@ -1112,15 +1114,24 @@ _PATTERN_EV_ZH = [
      lambda m: f"robots.txt 已存在；{m.group(1)} 条 Disallow 规则"),
     (_re.compile(r"Disallow rules? may block important content: (.+)"),
      lambda m: f"Disallow 规则可能屏蔽重要内容：{m.group(1)}"),
-    # 404
+    # HSTS
+    (_re.compile(r"HSTS header present: (.+)"),
+     lambda m: f"HSTS 安全头已存在：{m.group(1)}"),
+    # 404 — with size field (newer format)
+    (_re.compile(r"404 page returns HTTP 404; custom page: (yes|no); size: (\d+) KB"),
+     lambda m: f"404 页面返回 HTTP 404；自定义页面：{'是' if m.group(1)=='yes' else '否'}；页面体积：{m.group(2)} KB"),
     (_re.compile(r"404 page returns HTTP 404; custom page: (yes|no)"),
      lambda m: f"404 页面返回 HTTP 404；自定义页面：{'是' if m.group(1)=='yes' else '否'}"),
     (_re.compile(r"Non-existent URL returned HTTP (\d+) instead of 404"),
      lambda m: f"不存在的 URL 返回了 HTTP {m.group(1)}，而非 404"),
+    (_re.compile(r"404 error page is (\d+) KB \(threshold: (\d+) KB\)"),
+     lambda m: f"404 错误页面体积为 {m.group(1)} KB（阈值：{m.group(2)} KB）"),
     # Canonical
     (_re.compile(r"^canonical: (.+)$"),
      lambda m: f"canonical 标签：{m.group(1)}"),
     # Structured data
+    (_re.compile(r"No JSON-LD found in static HTML\..+"),
+     lambda _: "静态 HTML 未检测到 JSON-LD；CMS 插件（Yoast、RankMath、AIOSEO）常通过 JS 注入，建议用 Google Rich Results Test 或浏览器开发者工具确认"),
     (_re.compile(r"(\d+) JSON-LD block\(s\); types: (.+)"),
      lambda m: f"{m.group(1)} 个 JSON-LD 块，类型：{m.group(2)}"),
     # Sitemap
